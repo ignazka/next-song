@@ -297,8 +297,8 @@ function WishSheet({
             )}
 
             <p className="privacy">
-              {dedicationsEnabled ? 'Name und Widmung sieht' : 'Deinen Namen sieht'} nur Simon. Gespeichert wird nur dein Wunsch, und nur bis dein Lied gespielt ist –
-              danach ist alles gelöscht. Kommt es nicht dran, wird es spätestens nach dem Auftritt gelöscht. Kein Login, keine Cookies.
+              {dedicationsEnabled ? 'Name und Widmung sieht' : 'Deinen Namen sieht'} nur Simon. Dein Wunsch wird gelöscht, sobald dein Lied gespielt ist,
+              sonst automatisch nach 2 Stunden. Kein Login, keine Cookies.
             </p>
             {err && <p className="error-text">{err}</p>}
             <button className="btn btn-primary btn-block" disabled={busy}>

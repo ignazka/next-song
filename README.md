@@ -71,7 +71,7 @@ data/                       songs.json + settings.json (entsteht zur Laufzeit, n
 | Was | Wo | Wie lange |
 | --- | --- | --- |
 | Songliste, Einstellungen (Simons Daten) | `data/*.json` | dauerhaft |
-| Wunsch: Lied, Name, Widmung, Zeitpunkt, gehashter Tab-Code | **nur Arbeitsspeicher** | bis „Gespielt“ oder „Entfernen“ – dann **komplett gelöscht**, ohne Status oder Spuren („Überspringen“ verschiebt nur). Nicht drangekommene Wünsche spätestens nach 12 Std. (`REQUEST_TTL_HOURS`); „Event beenden“ löscht sofort |
+| Wunsch: Lied, Name, Widmung, Zeitpunkt, gehashter Tab-Code | **nur Arbeitsspeicher** | bis „Gespielt“ oder „Entfernen“ – dann **komplett gelöscht**, ohne Status oder Spuren („Überspringen“ verschiebt nur). Nicht drangekommene Wünsche spätestens nach 2 Std. (`REQUEST_TTL_HOURS`); „Event beenden“ löscht sofort |
 | Zähler „x gespielt“ | Arbeitsspeicher | bis „Event beenden“ oder Neustart – eine Zahl ohne Bezug zu Lied oder Person |
 | Gäste-IP-Adressen | – | werden **nicht** gespeichert (nur beim Musiker-Login als Schutz gegen Passwort-Raten, 10 Min.) |
 

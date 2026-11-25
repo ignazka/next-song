@@ -8,7 +8,7 @@ export const DIST_DIR = path.resolve('dist');
 export const TRUST_PROXY = process.env.TRUST_PROXY === 'true';
 
 /** Nicht gespielte Wünsche werden spätestens nach dieser Zeit gelöscht (gespielte sofort). */
-export const REQUEST_TTL_MS = (Number(process.env.REQUEST_TTL_HOURS) || 12) * 3600_000;
+export const REQUEST_TTL_MS = (Number(process.env.REQUEST_TTL_HOURS) || 2) * 3600_000;
 
 export const LIMITS = {
   name: 40,
