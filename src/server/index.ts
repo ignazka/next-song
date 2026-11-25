@@ -93,7 +93,7 @@ app.post('/api/requests', async (c) => {
   const guestKey = token ? crypto.createHash('sha256').update(token).digest('hex').slice(0, 32) : '';
   if (guestKey && store.openWishesOf(guestKey) >= LIMITS.openPerGuest) {
     return c.json(
-      { error: `Du hast schon ${LIMITS.openPerGuest} offene Wünsche – sobald eins davon gespielt ist, kannst du dir wieder etwas wünschen.` },
+      { error: `Du hast schon ${LIMITS.openPerGuest} offene Wünsche. Sobald eins davon gespielt ist, kannst du dir wieder etwas wünschen.` },
       429,
     );
   }
@@ -280,8 +280,8 @@ if (fs.existsSync(DIST_DIR)) {
 
 const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
   const mode = fs.existsSync(DIST_DIR) ? 'App + API' : 'nur API (Oberfläche über `npm run dev` / Vite)';
-  console.log(`Songwunsch-Server läuft auf http://localhost:${info.port} – ${mode}`);
-  if (!isPasswordConfigured()) console.warn('Achtung: ADMIN_PASSWORD ist nicht gesetzt – Login nicht möglich.');
+  console.log(`Songwunsch-Server läuft auf http://localhost:${info.port} (${mode})`);
+  if (!isPasswordConfigured()) console.warn('Achtung: ADMIN_PASSWORD ist nicht gesetzt, Login nicht möglich.');
 });
 server.on('error', (err: NodeJS.ErrnoException) => {
   if (err.code === 'EADDRINUSE') {

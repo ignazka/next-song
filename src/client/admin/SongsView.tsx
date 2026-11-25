@@ -168,7 +168,7 @@ export default function SongsView({ onUnauthorized }: { onUnauthorized: () => vo
           <>
             <SongFilterBar songs={songs} filter={filter} onChange={setFilter} resultCount={visible.length} />
             {visible.length === 0 ? (
-              <p className="empty">{songs.length ? 'Keine passenden Songs.' : 'Noch keine Songs – leg links los!'}</p>
+              <p className="empty">{songs.length ? 'Keine passenden Songs.' : 'Noch keine Songs. Leg links los!'}</p>
             ) : (
               <table className="admin-songs">
                 <thead>

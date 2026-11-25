@@ -87,7 +87,7 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
       } while (loading.current.again);
     } catch (e) {
       if (e instanceof Unauthorized) onUnauthorized();
-      else setErr('Keine Verbindung zum Server – versuche es weiter …');
+      else setErr('Keine Verbindung zum Server. Versuche es weiter …');
     } finally {
       loading.current.busy = false;
     }
@@ -161,7 +161,7 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
         await load();
       } catch (e) {
         if (e instanceof Unauthorized) return onUnauthorized();
-        setErr('Reihenfolge konnte nicht gespeichert werden – bitte nochmal versuchen.');
+        setErr('Reihenfolge konnte nicht gespeichert werden. Bitte nochmal versuchen.');
       } finally {
         if (!drag.current) setLocalOrder(null);
       }
@@ -242,7 +242,7 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
       } catch {
         // Fehlgeschlagen → wieder einblenden, damit nichts verloren geht
         setHidden((h) => new Set([...h].filter((id) => !p.ids.includes(id))));
-        setErr('Konnte nicht gespeichert werden – bitte nochmal versuchen.');
+        setErr('Konnte nicht gespeichert werden. Bitte nochmal versuchen.');
       }
       load();
     },
@@ -350,13 +350,13 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
 
             <div className="now-actions">
               <button className="btn btn-success btn-xl" onClick={() => finish(current, 'played')}>
-                ✓ Gespielt – weiter
+                ✓ Gespielt, weiter
               </button>
               <button
                 className="btn btn-outline"
                 onClick={skip}
                 disabled={upcoming.length === 0}
-                title="Mit dem nächsten Lied tauschen – nichts wird gelöscht"
+                title="Mit dem nächsten Lied tauschen, nichts wird gelöscht"
               >
                 Überspringen
               </button>
@@ -402,7 +402,7 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
                       <span className="later-main">
                         {isNext && <span className="next-badge">Als Nächstes</span>}
                         <span className="later-title">
-                          <strong>{item.title}</strong> <span className="muted">– {item.artist}</span>
+                          <strong>{item.title}</strong> <span className="muted">· {item.artist}</span>
                         </span>
                         <span className="later-meta">
                           {item.wishes.map((w) => w.name || 'anonym').join(', ')}

@@ -244,7 +244,7 @@ function WishSheet({
             <Klangkreis size={140} animated />
             <h2>Dein Wunsch ist angekommen</h2>
             <p>
-              <strong>{song.title}</strong> steht jetzt auf Simons Liste. Lehn dich zurück – du hörst es, wenn es so weit ist.
+              <strong>{song.title}</strong> steht jetzt auf Simons Liste. Lehn dich zurück, du hörst es, wenn es so weit ist.
             </p>
             <button className="btn btn-outline btn-block" onClick={onClose}>
               Zurück zur Liste
@@ -285,7 +285,7 @@ function WishSheet({
                 <textarea
                   id="wish-dedication"
                   className="textarea"
-                  placeholder="z. B. Für das Brautpaar – auf die nächsten 50 Jahre!"
+                  placeholder="z. B. Für das Brautpaar: auf die nächsten 50 Jahre!"
                   maxLength={limits.dedication}
                   value={dedication}
                   onChange={(e) => setDedication(e.target.value)}

@@ -121,7 +121,7 @@ export function addSongs(list: Omit<Song, 'id'>[]): { added: number; skipped: nu
 // ---------- Einstellungen ----------
 /** Standard-Begrüßung; ohne Widmungen wird automatisch die zweite Variante gezeigt. */
 export const DEFAULT_WELCOME = 'Such dir ein Lied aus, gerne mit einer kleinen Widmung. Ich lese sie vor, wenn dein Lied dran ist.';
-export const DEFAULT_WELCOME_NO_DEDICATION = 'Such dir ein Lied aus – ich spiele es, sobald es gut passt.';
+export const DEFAULT_WELCOME_NO_DEDICATION = 'Such dir ein Lied aus. Ich spiele es, sobald es gut passt.';
 
 const DEFAULT_SETTINGS: Settings = {
   eventTitle: 'Wünsch dir ein Lied',
