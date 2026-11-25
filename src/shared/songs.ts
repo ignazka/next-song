@@ -12,12 +12,11 @@ export function decadeLabel(decade: number | null): string {
 export type SongFilter = {
   search: string;
   artist: string;
-  genre: string;
   decade: string;
   sort: 'artist' | 'title';
 };
 
-export const EMPTY_FILTER: SongFilter = { search: '', artist: '', genre: '', decade: '', sort: 'artist' };
+export const EMPTY_FILTER: SongFilter = { search: '', artist: '', decade: '', sort: 'artist' };
 
 const collator = new Intl.Collator('de', { sensitivity: 'base', numeric: true });
 
@@ -34,7 +33,6 @@ export function filterSongs<T extends Song>(songs: T[], f: SongFilter): T[] {
   const words = norm(f.search).split(/\s+/).filter(Boolean);
   const list = songs.filter((s) => {
     if (f.artist && s.artist !== f.artist) return false;
-    if (f.genre && s.genre !== f.genre) return false;
     if (f.decade && String(decadeOf(s.year)) !== f.decade) return false;
     if (words.length) {
       const hay = norm(`${s.title} ${s.artist}`);
@@ -51,9 +49,8 @@ export function filterSongs<T extends Song>(songs: T[], f: SongFilter): T[] {
 
 export function filterOptions(songs: Song[]) {
   const artists = [...new Set(songs.map((s) => s.artist))].sort((a, b) => collator.compare(sortKey(a), sortKey(b)));
-  const genres = [...new Set(songs.map((s) => s.genre).filter(Boolean))].sort(collator.compare);
   const decades = [...new Set(songs.map((s) => decadeOf(s.year)).filter((d): d is number => d !== null))].sort(
     (a, b) => a - b,
   );
-  return { artists, genres, decades };
+  return { artists, decades };
 }

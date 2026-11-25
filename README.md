@@ -27,6 +27,16 @@ npm run build
 npm start                   # http://localhost:3001 (PORT in .env änderbar)
 ```
 
+## Bühnenansicht (Musiker)
+
+- **Jetzt dran:** Titel, Name (oder „anonym“) und Widmung groß zum Vorlesen.
+  - **✓ Gespielt – weiter:** nächstes Lied rückt nach, der Wunsch wird gelöscht.
+  - **Überspringen:** tauscht mit dem nächsten Lied (nichts wird gelöscht; nochmal tippen tauscht zurück).
+  - **Entfernen** (rötlich): löscht den Wunsch. Beides mit 6 s „Rückgängig“ unten rechts.
+- **Warteschlange:** neue Lieder kommen ans Ende, mehrfach gewünschte Lieder behalten ihren Platz und zeigen alle Namen. Die oberste Zeile ist **Als Nächstes** (hervorgehoben). Reihenfolge per Griff ändern: ziehen mit Maus oder Finger, oder Griff fokussieren und Pfeiltasten.
+- Echtzeit-Updates, Ton bei neuen Wünschen (standardmäßig aus), Vollbild, Wünsche pausieren.
+- **Widmungen pro Event an/aus** (Einstellungen): z. B. bei Firmenfeiern ausschalten. Gäste sehen dann kein Widmungsfeld, der Server verwirft mitgeschickte Widmungen, und der Standard-Begrüßungstext erwähnt keine Widmung.
+
 ## Aufbau
 
 ```
@@ -51,14 +61,20 @@ data/                       songs.json + settings.json (entsteht zur Laufzeit, n
 
 ## Daten und Datenschutz
 
+**Prinzip: Ein Wunsch existiert nur, solange er in der Warteschlange steht.**
+
 | Was | Wo | Wie lange |
 | --- | --- | --- |
-| Songliste, Einstellungen | `data/*.json` | dauerhaft |
-| Wunsch: Lied, Name, Widmung | **nur Arbeitsspeicher** | Name + Widmung bis „Gespielt“/„Überspringen“; alles spätestens 12 Std. nach dem Wunsch (`REQUEST_TTL_HOURS`); „Event beenden“ löscht sofort |
-| Status erledigter Wünsche (ohne Personenbezug) | Arbeitsspeicher | bis 12 Std. nach dem Wunsch |
-| IP-Adresse | Arbeitsspeicher, nur für das Spam-Limit | 10 Minuten |
+| Songliste, Einstellungen (Simons Daten) | `data/*.json` | dauerhaft |
+| Wunsch: Lied, Name, Widmung, Zeitpunkt, gehashter Tab-Code | **nur Arbeitsspeicher** | bis „Gespielt“ oder „Entfernen“ – dann **komplett gelöscht**, ohne Status oder Spuren („Überspringen“ verschiebt nur). Nicht drangekommene Wünsche spätestens nach 12 Std. (`REQUEST_TTL_HOURS`); „Event beenden“ löscht sofort |
+| Zähler „x gespielt“ | Arbeitsspeicher | bis „Event beenden“ oder Neustart – eine Zahl ohne Bezug zu Lied oder Person |
+| Gäste-IP-Adressen | – | werden **nicht** gespeichert (nur beim Musiker-Login als Schutz gegen Passwort-Raten, 10 Min.) |
 
-Gästedaten werden **nie auf die Festplatte geschrieben**. Nach einem Neustart des Servers ist die Warteschlange leer – die Songliste bleibt. Gäste bekommen keine Cookies und brauchen kein Konto.
+- Gästedaten werden **nie auf die Festplatte geschrieben** und nicht geloggt. Nach einem Neustart ist die Warteschlange leer; die Songliste bleibt.
+- Das Limit (max. 3 offene Wünsche pro Gast) zählt nur Wünsche, die ohnehin noch in der Schlange stehen.
+- Nach dem Spielen weiß der Server nichts mehr über den Wunsch. Auch das Handy des Gastes merkt sich nicht, was er gewünscht hat – im Browser-Tab (`sessionStorage`, weg beim Schließen) liegen nur ein Zufallscode für das Limit und ob die Begrüßung schon gezeigt wurde.
+- Gäste bekommen keine Cookies und brauchen kein Konto.
+- Hinweis fürs Hosting: Ein vorgeschalteter Webserver (z. B. nginx, Caddy) oder Hosting-Anbieter kann eigene Zugriffs-Logs mit IP-Adressen führen. Die sollte man dort abschalten oder kurz halten.
 
 ## Hosting
 

@@ -10,9 +10,9 @@ type Props = {
 };
 
 export default function SongFilterBar({ songs, filter, onChange, resultCount }: Props) {
-  const { artists, genres, decades } = filterOptions(songs);
+  const { artists, decades } = filterOptions(songs);
   const set = (patch: Partial<SongFilter>) => onChange({ ...filter, ...patch });
-  const active = !!(filter.search || filter.artist || filter.genre || filter.decade);
+  const active = !!(filter.search || filter.artist || filter.decade);
 
   return (
     <div className="filters">
@@ -38,17 +38,6 @@ export default function SongFilterBar({ songs, filter, onChange, resultCount }: 
           <option value="">Interpret</option>
           {artists.map((a) => (
             <option key={a} value={a}>{a}</option>
-          ))}
-        </select>
-        <select
-          className={`select ${filter.genre ? 'active' : ''}`}
-          value={filter.genre}
-          onChange={(e) => set({ genre: e.target.value })}
-          aria-label="Genre"
-        >
-          <option value="">Genre</option>
-          {genres.map((g) => (
-            <option key={g} value={g}>{g}</option>
           ))}
         </select>
         <select

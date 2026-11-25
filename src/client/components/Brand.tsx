@@ -39,7 +39,25 @@ export function BrandBar() {
 }
 
 /** „Simon für eure Feier anfragen“ + Instagram (+ WhatsApp, sobald hinterlegt). */
-export function BookingLinks({ eventTitle }: { eventTitle?: string }) {
+export function BookingLinks({ eventTitle, variant = 'page' }: { eventTitle?: string; variant?: 'page' | 'card' }) {
+  // In der Bestätigungs-Karte nach dem Wunsch: Instagram zuerst, darunter kurz „Schreib Simon“ (Wunsch von Simon)
+  if (variant === 'card') {
+    return (
+      <div className="cta-stack">
+        <a className="btn btn-primary" href={BRAND.instagram} target="_blank" rel="noopener noreferrer">
+          <InstagramIcon size={18} /> Simon auf Instagram
+        </a>
+        <a className="btn btn-outline" href={bookingMailto(eventTitle)}>
+          <MailIcon size={18} /> Schreib Simon
+        </a>
+        {BRAND.whatsapp && (
+          <a className="btn btn-outline" href={BRAND.whatsapp} target="_blank" rel="noopener noreferrer">
+            <WhatsAppIcon size={18} /> Per WhatsApp
+          </a>
+        )}
+      </div>
+    );
+  }
   return (
     <div className="cta-stack">
       <a className="btn btn-primary" href={bookingMailto(eventTitle)}>

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, Unauthorized } from './api';
 import SongFilterBar from '../components/SongFilterBar';
-import { decadeLabel, decadeOf, EMPTY_FILTER, filterOptions, filterSongs, type SongFilter } from '../../shared/songs';
+import { decadeLabel, decadeOf, EMPTY_FILTER, filterSongs, type SongFilter } from '../../shared/songs';
 import type { Song } from '../../shared/types';
 
-type Draft = { artist: string; title: string; genre: string; year: string };
-const EMPTY_DRAFT: Draft = { artist: '', title: '', genre: '', year: '' };
+type Draft = { artist: string; title: string; year: string };
+const EMPTY_DRAFT: Draft = { artist: '', title: '', year: '' };
 
 export default function SongsView({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [songs, setSongs] = useState<Song[] | null>(null);
@@ -37,7 +37,6 @@ export default function SongsView({ onUnauthorized }: { onUnauthorized: () => vo
   }, [load]);
 
   const visible = useMemo(() => (songs ? filterSongs(songs, filter) : []), [songs, filter]);
-  const genres = useMemo(() => (songs ? filterOptions(songs).genres : []), [songs]);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -50,8 +49,8 @@ export default function SongsView({ onUnauthorized }: { onUnauthorized: () => vo
         await api('/api/admin/songs', { method: 'POST', body: draft });
         setMsg({ ok: true, text: `„${draft.title}“ hinzugefügt.` });
       }
-      // Interpret & Genre stehen lassen – praktisch beim Eintragen mehrerer Songs eines Künstlers
-      setDraft(editId ? EMPTY_DRAFT : { ...EMPTY_DRAFT, artist: draft.artist, genre: draft.genre });
+      // Interpret stehen lassen – praktisch beim Eintragen mehrerer Songs eines Künstlers
+      setDraft(editId ? EMPTY_DRAFT : { ...EMPTY_DRAFT, artist: draft.artist });
       setEditId(null);
       load();
     } catch (e) {
@@ -61,7 +60,7 @@ export default function SongsView({ onUnauthorized }: { onUnauthorized: () => vo
 
   function edit(s: Song) {
     setEditId(s.id);
-    setDraft({ artist: s.artist, title: s.title, genre: s.genre, year: s.year ? String(s.year) : '' });
+    setDraft({ artist: s.artist, title: s.title, year: s.year ? String(s.year) : '' });
     setMsg(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -113,20 +112,10 @@ export default function SongsView({ onUnauthorized }: { onUnauthorized: () => vo
             <label htmlFor="s-title">Titel *</label>
             <input id="s-title" className="input" required maxLength={120} value={draft.title} onChange={set('title')} />
           </div>
-          <div className="form-row">
-            <div className="field">
-              <label htmlFor="s-genre">Genre</label>
-              <input id="s-genre" className="input" list="genre-list" maxLength={40} value={draft.genre} onChange={set('genre')} />
-              <datalist id="genre-list">
-                {genres.map((g) => (
-                  <option key={g} value={g} />
-                ))}
-              </datalist>
-            </div>
-            <div className="field">
-              <label htmlFor="s-year">Jahr</label>
-              <input id="s-year" className="input" inputMode="numeric" placeholder="1985" maxLength={4} value={draft.year} onChange={set('year')} />
-            </div>
+          <div className="field" style={{ maxWidth: 180 }}>
+            <label htmlFor="s-year">Jahr</label>
+            <input id="s-year" className="input" inputMode="numeric" placeholder="1985" maxLength={4} value={draft.year} onChange={set('year')} />
+            <span className="hint">für den Jahrzehnt-Filter</span>
           </div>
           {msg && <p className={msg.ok ? 'ok-text' : 'error-text'}>{msg.text}</p>}
           <div className="row">
@@ -149,13 +138,13 @@ export default function SongsView({ onUnauthorized }: { onUnauthorized: () => vo
         <div className="card">
           <h2 className="card-title">Viele Songs auf einmal</h2>
           <p className="muted small" style={{ marginTop: 0 }}>
-            Eine Zeile pro Song: <code>Interpret; Titel; Genre; Jahr</code>. Genre und Jahr sind optional. Du kannst
-            auch Spalten aus Excel einfügen.
+            Eine Zeile pro Song: <code>Interpret; Titel; Jahr</code>. Das Jahr ist optional. Du kannst auch Spalten
+            aus Excel einfügen.
           </p>
           <textarea
             className="textarea"
             rows={6}
-            placeholder={'Queen; Bohemian Rhapsody; Rock; 1975\nAdele; Make You Feel My Love; Pop; 2008'}
+            placeholder={'Queen; Bohemian Rhapsody; 1975\nAdele; Make You Feel My Love; 2008'}
             value={importText}
             onChange={(e) => setImportText(e.target.value)}
           />
@@ -188,7 +177,6 @@ export default function SongsView({ onUnauthorized }: { onUnauthorized: () => vo
                     <th onClick={() => setFilter({ ...filter, sort: 'artist' })}>
                       Interpret {filter.sort === 'artist' && '↓'}
                     </th>
-                    <th className="hide-sm">Genre</th>
                     <th className="hide-sm">Jahr</th>
                     <th />
                   </tr>
@@ -200,7 +188,6 @@ export default function SongsView({ onUnauthorized }: { onUnauthorized: () => vo
                         <strong>{s.title}</strong>
                       </td>
                       <td className="muted">{s.artist}</td>
-                      <td className="hide-sm">{s.genre && <span className="tag">{s.genre}</span>}</td>
                       <td className="hide-sm dim" title={s.year ? decadeLabel(decadeOf(s.year)) : ''}>
                         {s.year ?? ''}
                       </td>

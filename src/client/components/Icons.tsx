@@ -84,3 +84,27 @@ export function CopyIcon({ size = 18, className }: IconProps) {
     </svg>
   );
 }
+
+export function InfoIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 11v5.5" />
+      <circle cx="12" cy="7.8" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** Griff zum Ziehen (sechs Punkte). */
+export function GripIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      {[7, 12, 17].map((y) => (
+        <g key={y}>
+          <circle cx="9" cy={y} r="1.1" fill="currentColor" stroke="none" />
+          <circle cx="15" cy={y} r="1.1" fill="currentColor" stroke="none" />
+        </g>
+      ))}
+    </svg>
+  );
+}

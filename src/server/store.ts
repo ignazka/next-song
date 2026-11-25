@@ -3,7 +3,7 @@
  *
  * - Songliste und Einstellungen: JSON-Dateien in DATA_DIR (überstehen Neustarts)
  * - Wünsche: nur im Arbeitsspeicher. Name und Widmung landen nie auf der Festplatte.
- *   Nach einem Neustart ist die Warteschlange leer – für den Abend eines Events vertretbar.
+ *   Nach einem Neustart ist die Warteschlange leer – für die Dauer eines Events vertretbar.
  *
  * Jede Änderung löst das Event "change" aus; die Musiker-Ansichten hängen per SSE daran.
  */
@@ -11,8 +11,8 @@ import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
-import { DATA_DIR, LIMITS, REQUEST_TTL_MS, SEED_FILE } from './config.ts';
-import type { AdminRequest, RequestStatus, Settings, Song } from '../shared/types.ts';
+import { DATA_DIR, REQUEST_TTL_MS, SEED_FILE } from './config.ts';
+import type { AdminRequest, Settings, Song } from '../shared/types.ts';
 
 // ---------- Dateien ----------
 const SONGS_FILE = path.join(DATA_DIR, 'songs.json');
@@ -46,10 +46,23 @@ function changed() {
 }
 
 // ---------- Songliste ----------
-let songs: Song[] = readJson<Song[] | null>(SONGS_FILE, null) ?? [];
-if (!fs.existsSync(SONGS_FILE)) {
+/** Nur die bekannten Felder übernehmen (ältere Listen hatten z. B. noch ein Genre). */
+const toSong = (s: Partial<Song>): Song => ({
+  id: s.id || crypto.randomUUID(),
+  artist: String(s.artist ?? ''),
+  title: String(s.title ?? ''),
+  year: typeof s.year === 'number' ? s.year : null,
+});
+
+let songs: Song[];
+if (fs.existsSync(SONGS_FILE)) {
+  const raw = readJson<Partial<Song>[]>(SONGS_FILE, []);
+  songs = raw.map(toSong);
+  // Alte Felder einmalig aus der Datei entfernen
+  if (JSON.stringify(raw) !== JSON.stringify(songs)) writeJson(SONGS_FILE, songs);
+} else {
   // Erster Start: Beispielsongs übernehmen, damit die App nicht leer ist
-  songs = readJson<Omit<Song, 'id'>[]>(SEED_FILE, []).map((s) => ({ id: crypto.randomUUID(), ...s }));
+  songs = readJson<Partial<Song>[]>(SEED_FILE, []).map(toSong);
   writeJson(SONGS_FILE, songs);
 }
 const songKey = (s: Pick<Song, 'artist' | 'title'>) => `${s.artist.toLowerCase()}|${s.title.toLowerCase()}`;
@@ -82,7 +95,7 @@ export function deleteSong(id: string): boolean {
   songs = songs.filter((s) => s.id !== id);
   if (songs.length === before) return false;
   // offene Wünsche zu diesem Song mit entfernen
-  for (const w of wishes.filter((w) => w.songId === id)) finish(w.id, 'declined');
+  finishWishes(wishes.filter((w) => w.songId === id).map((w) => w.id), 'declined');
   saveSongs();
   changed();
   return true;
@@ -106,13 +119,18 @@ export function addSongs(list: Omit<Song, 'id'>[]): { added: number; skipped: nu
 }
 
 // ---------- Einstellungen ----------
+/** Standard-Begrüßung; ohne Widmungen wird automatisch die zweite Variante gezeigt. */
+export const DEFAULT_WELCOME = 'Such dir ein Lied aus, gerne mit einer kleinen Widmung. Ich lese sie vor, wenn dein Lied dran ist.';
+export const DEFAULT_WELCOME_NO_DEDICATION = 'Such dir ein Lied aus – ich spiele es, sobald es gut passt.';
+
 const DEFAULT_SETTINGS: Settings = {
   eventTitle: 'Wünsch dir ein Lied',
-  welcomeText: 'Such dir ein Lied aus, gerne mit einer kleinen Widmung. Ich lese sie vor, wenn dein Lied dran ist.',
+  welcomeText: DEFAULT_WELCOME,
   requestsOpen: true,
   publicUrl: process.env.PUBLIC_URL ?? '',
   reviewUrl: '',
   hostFormal: false,
+  dedicationsEnabled: true,
 };
 let settings: Settings = { ...DEFAULT_SETTINGS, ...readJson<Partial<Settings>>(SETTINGS_FILE, {}) };
 
@@ -124,68 +142,86 @@ export function updateSettings(patch: Partial<Settings>) {
 }
 
 // ---------- Wünsche (nur im Arbeitsspeicher) ----------
+//
+// Datenschutz-Prinzip: Ein Wunsch existiert nur, solange er in der Warteschlange steht.
+// Sobald der Musiker ihn als gespielt markiert (oder überspringt), wird er vollständig
+// gelöscht – es bleibt kein Eintrag, kein Status, kein Zeitstempel und kein Gast-Kennzeichen.
+// Übrig bleibt nur der Zähler „x gespielt“ (eine Zahl ohne Bezug zu Lied oder Person).
 type Wish = {
   id: string;
   songId: string;
   name: string;
   dedication: string;
-  /** gehashter Zufalls-Token des Browser-Tabs – nur für das Wunsch-Limit */
+  /** gehashter Zufalls-Token des Browser-Tabs – nur für das Limit offener Wünsche */
   guestKey: string;
   createdAt: number;
 };
 let wishes: Wish[] = [];
-/** Erledigte Wünsche: nur ID → Status, ohne personenbezogene Daten (für die Statusanzeige beim Gast). */
-const done = new Map<string, { status: Exclude<RequestStatus, 'open' | 'next'>; at: number; createdAt: number }>();
 let playedCount = 0;
+/**
+ * Reihenfolge der Warteschlange als Liste von Song-IDs (ein Platz pro Lied).
+ * Neue Lieder kommen ans Ende; wird ein Lied mehrfach gewünscht, behält es seinen Platz.
+ * Der Musiker kann die Reihenfolge ändern (Überspringen, Ziehen).
+ */
+let order: string[] = [];
+
+/** Lieder ohne offene Wünsche aus der Reihenfolge entfernen. */
+function pruneOrder() {
+  const open = new Set(wishes.map((w) => w.songId));
+  order = order.filter((id) => open.has(id));
+}
 
 export function addWish(input: { songId: string; name: string; dedication: string; guestKey: string }): string {
   const wish: Wish = { id: crypto.randomUUID(), createdAt: Date.now(), ...input };
   wishes.push(wish);
+  if (!order.includes(wish.songId)) order.push(wish.songId);
   changed();
   return wish.id;
 }
 
-/** Wünsche dieses Gastes im Zeitfenster (offene und erledigte zählen, damit das Limit nicht umgangen wird). */
-export function recentWishesOf(guestKey: string): number {
-  const since = Date.now() - LIMITS.windowMs;
-  return wishes.filter((w) => w.guestKey === guestKey && w.createdAt > since).length + recentDoneKeys(guestKey, since);
-}
-// Für das Limit merken wir uns nach dem Erledigen nur den Zeitpunkt pro Gast – im Speicher, 10 Minuten lang.
-const doneByGuest = new Map<string, number[]>();
-function recentDoneKeys(guestKey: string, since: number) {
-  return (doneByGuest.get(guestKey) ?? []).filter((t) => t > since).length;
-}
-
-function finish(id: string, status: 'played' | 'declined'): boolean {
-  const i = wishes.findIndex((w) => w.id === id);
-  if (i === -1) return false;
-  const [w] = wishes.splice(i, 1); // damit sind Name und Widmung gelöscht
-  done.set(id, { status, at: Date.now(), createdAt: w.createdAt });
-  if (w.guestKey) doneByGuest.set(w.guestKey, [...(doneByGuest.get(w.guestKey) ?? []), w.createdAt]);
-  if (status === 'played') playedCount++;
-  return true;
+/**
+ * Neue Reihenfolge setzen. Unbekannte IDs werden ignoriert; Lieder, die im Request fehlen
+ * (z. B. weil gerade ein neuer Wunsch kam), behalten ihre Reihenfolge und kommen ans Ende.
+ */
+export function setOrder(songIds: string[]) {
+  const current = new Set(order);
+  const head = [...new Set(songIds)].filter((id) => current.has(id));
+  const rest = order.filter((id) => !head.includes(id));
+  order = [...head, ...rest];
+  changed();
 }
 
+/** Offene Wünsche dieses Gastes (für das Limit – erledigte Wünsche sind ja gelöscht). */
+export function openWishesOf(guestKey: string): number {
+  return wishes.filter((w) => w.guestKey === guestKey).length;
+}
+
+/** Gespielt oder entfernt: Wunsch komplett löschen. */
 export function finishWishes(ids: string[], status: 'played' | 'declined'): number {
-  const n = ids.filter((id) => finish(id, status)).length;
+  const remove = new Set(ids);
+  const before = wishes.length;
+  wishes = wishes.filter((w) => !remove.has(w.id));
+  const n = before - wishes.length;
+  if (status === 'played') playedCount += n;
+  pruneOrder();
   if (n) changed();
   return n;
 }
 
 /** Event beenden: alles vergessen. */
 export function clearWishes() {
-  for (const w of wishes) done.set(w.id, { status: 'gone', at: Date.now(), createdAt: w.createdAt });
   wishes = [];
-  doneByGuest.clear();
+  order = [];
   playedCount = 0;
   changed();
 }
 
-/** Offene Wünsche für den Musiker, ältester zuerst. */
+/** Offene Wünsche für den Musiker in der Reihenfolge der Warteschlange (innerhalb eines Lieds: ältester zuerst). */
 export function queue(): AdminRequest[] {
+  const pos = new Map(order.map((id, i) => [id, i]));
   return wishes
     .slice()
-    .sort((a, b) => a.createdAt - b.createdAt)
+    .sort((a, b) => (pos.get(a.songId) ?? Infinity) - (pos.get(b.songId) ?? Infinity) || a.createdAt - b.createdAt)
     .flatMap((w) => {
       const song = findSong(w.songId);
       if (!song) return [];
@@ -212,32 +248,13 @@ export function wishedCounts(): Map<string, number> {
   return m;
 }
 
-/**
- * Status für den Gast. Die Position entspricht der Musiker-Warteschlange:
- * Songs in Reihenfolge des ersten Wunsches, mehrfach gewünschte Songs zählen als ein Platz.
- */
-export function wishStatus(id: string): { status: RequestStatus; position: number | null } {
-  const w = wishes.find((x) => x.id === id);
-  if (!w) return { status: done.get(id)?.status ?? 'gone', position: null };
-  const order: string[] = [];
-  for (const x of wishes.slice().sort((a, b) => a.createdAt - b.createdAt)) {
-    if (!order.includes(x.songId)) order.push(x.songId);
-  }
-  return { status: 'open', position: order.indexOf(w.songId) + 1 };
-}
-
-// ---------- Automatisches Löschen ----------
-function purge() {
+// ---------- Automatisches Löschen nicht gespielter Wünsche ----------
+setInterval(() => {
   const cutoff = Date.now() - REQUEST_TTL_MS;
   const before = wishes.length;
   wishes = wishes.filter((w) => w.createdAt >= cutoff);
-  for (const [id, d] of done) if (d.createdAt < cutoff) done.delete(id);
-  const windowStart = Date.now() - LIMITS.windowMs;
-  for (const [k, times] of doneByGuest) {
-    const fresh = times.filter((t) => t > windowStart);
-    if (fresh.length) doneByGuest.set(k, fresh);
-    else doneByGuest.delete(k);
+  if (wishes.length !== before) {
+    pruneOrder();
+    changed();
   }
-  if (wishes.length !== before) changed();
-}
-setInterval(purge, 60_000).unref();
+}, 60_000).unref();

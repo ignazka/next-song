@@ -1,32 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import SongFilterBar from './SongFilterBar';
 import Klangkreis from './Klangkreis';
-import { PlusIcon } from './Icons';
+import { InfoIcon, PlusIcon } from './Icons';
 import { BookingLinks, BrandBar } from './Brand';
 import { BRAND } from '../../shared/brand';
 import { decadeLabel, decadeOf, EMPTY_FILTER, filterSongs, type SongFilter } from '../../shared/songs';
-import type { GuestWishStatus, PublicData, PublicSong, RequestStatus } from '../../shared/types';
+import type { PublicData, PublicSong } from '../../shared/types';
 
 /**
- * Gäste-Session: liegt nur im sessionStorage dieses Browser-Tabs (keine Cookies),
- * verschwindet beim Schließen des Tabs und läuft spätestens nach 3 Stunden ab.
+ * Im Browser-Tab des Gastes (sessionStorage, keine Cookies, weg beim Schließen) liegen nur:
+ * - ein zufälliger Code für das Limit offener Wünsche
+ * - ob die Begrüßung schon gezeigt wurde
+ * Welche Lieder sich der Gast gewünscht hat, wird nirgends gemerkt – auch nicht auf dem Handy.
  */
-const STORE_KEY = 'songwunsch:session';
-const SESSION_MS = 3 * 3600_000;
+const TOKEN_KEY = 'songwunsch:token';
+const INTRO_KEY = 'songwunsch:intro-seen';
 
-type MyWish = { id: string; title: string; artist: string; at: number; status: RequestStatus; position?: number | null };
-type GuestSession = { token: string; started: number; wishes: MyWish[] };
-
-function loadSession(): GuestSession {
-  try {
-    const s = JSON.parse(sessionStorage.getItem(STORE_KEY) || 'null') as GuestSession | null;
-    if (s && Date.now() - s.started < SESSION_MS) return s;
-  } catch {}
-  return { token: randomToken(), started: Date.now(), wishes: [] };
+function guestToken(): string {
+  let token = sessionStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    token = randomToken();
+    sessionStorage.setItem(TOKEN_KEY, token);
+  }
+  return token;
 }
 
 /**
- * Zufälliger Token für das Wunsch-Limit. Bewusst nicht crypto.randomUUID():
+ * Zufälliger Code. Bewusst nicht crypto.randomUUID():
  * das gibt es nur über HTTPS/localhost, die App soll aber auch per http:// im WLAN laufen.
  */
 function randomToken(): string {
@@ -34,27 +34,21 @@ function randomToken(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-const DONE_TEXT: Partial<Record<RequestStatus, string>> = {
-  played: 'Gespielt ✓',
-  declined: 'Diesmal leider nicht',
-  gone: 'Abgelaufen',
-};
-
-function statusLabel(w: MyWish): { text: string; cls: string } {
-  if (w.status === 'open' || w.status === 'next') {
-    if (w.position === 1) return { text: 'Jetzt dran', cls: 'status-next' };
-    if (w.position === 2) return { text: 'Als Nächstes', cls: 'status-next' };
-    return { text: w.position ? `Wartet · Platz ${w.position}` : 'Wartet', cls: 'status-open' };
-  }
-  return { text: DONE_TEXT[w.status] ?? '', cls: `status-${w.status}` };
-}
-
 export default function GuestApp() {
   const [data, setData] = useState<PublicData | null>(null);
   const [loadError, setLoadError] = useState('');
   const [filter, setFilter] = useState<SongFilter>(EMPTY_FILTER);
   const [selected, setSelected] = useState<PublicSong | null>(null);
-  const [session, setSession] = useState<GuestSession | null>(null);
+  const [introOpen, setIntroOpen] = useState(false);
+
+  // Begrüßung + Datenschutz-Hinweis einmal pro Besuch als Popup zeigen, danach über das Info-Icon
+  useEffect(() => {
+    if (!sessionStorage.getItem(INTRO_KEY)) setIntroOpen(true);
+  }, []);
+  const closeIntro = useCallback(() => {
+    sessionStorage.setItem(INTRO_KEY, '1');
+    setIntroOpen(false);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -68,41 +62,10 @@ export default function GuestApp() {
   }, []);
 
   useEffect(() => {
-    setSession(loadSession());
     load();
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
   }, [load]);
-
-  useEffect(() => {
-    if (session) sessionStorage.setItem(STORE_KEY, JSON.stringify(session));
-  }, [session]);
-
-  // Status der eigenen Wünsche regelmäßig abfragen, solange noch etwas offen ist
-  const pendingIds = useMemo(
-    () => (session?.wishes ?? []).filter((w) => w.status === 'open' || w.status === 'next').map((w) => w.id),
-    [session],
-  );
-  const pendingKey = pendingIds.join(',');
-  useEffect(() => {
-    if (!pendingKey) return;
-    const ids = pendingKey.split(',');
-    const poll = async () => {
-      try {
-        const res = await fetch('/api/requests/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids }),
-        });
-        if (!res.ok) return;
-        const map = (await res.json()) as Record<string, GuestWishStatus>;
-        setSession((s) => s && { ...s, wishes: s.wishes.map((w) => (map[w.id] ? { ...w, ...map[w.id] } : w)) });
-      } catch {}
-    };
-    poll();
-    const t = setInterval(poll, 10_000);
-    return () => clearInterval(t);
-  }, [pendingKey]);
 
   const songs = useMemo(() => (data ? filterSongs(data.songs, filter) : []), [data, filter]);
 
@@ -127,29 +90,23 @@ export default function GuestApp() {
     <main className="wrap">
       <BrandBar />
 
-      <header className="hero">
+      <header className="hero hero-compact">
         <h1>{data.eventTitle}</h1>
-        {data.welcomeText && <p>{data.welcomeText}</p>}
-        <p className="hero-note">Kein Login. Name und Widmung werden gelöscht, sobald dein Lied gespielt ist, alles Übrige nach dem Event.</p>
+        <button
+          type="button"
+          className="icon-btn info-btn"
+          onClick={() => setIntroOpen(true)}
+          aria-label="So funktioniert's und Datenschutz"
+          title="So funktioniert's"
+        >
+          <InfoIcon />
+        </button>
       </header>
+
+      {introOpen && <IntroSheet title={data.eventTitle} welcomeText={data.welcomeText} onClose={closeIntro} />}
 
       {!data.requestsOpen && (
         <div className="banner">Gerade werden keine Wünsche angenommen. Schau später noch einmal vorbei.</div>
-      )}
-
-      {session && session.wishes.length > 0 && (
-        <section className="card my-wishes" aria-live="polite">
-          <div className="label">Deine Wünsche</div>
-          {session.wishes.map((w) => (
-            <div className="wish-row" key={w.id}>
-              <div className="song-main">
-                <div className="song-title">{w.title}</div>
-                <div className="song-artist">{w.artist}</div>
-              </div>
-              <span className={`status ${statusLabel(w).cls}`}>{statusLabel(w).text}</span>
-            </div>
-          ))}
-        </section>
       )}
 
       <SongFilterBar songs={data.songs} filter={filter} onChange={setFilter} resultCount={songs.length} />
@@ -165,7 +122,6 @@ export default function GuestApp() {
                   <div className="song-title">{s.title}</div>
                   <div className="song-artist">{s.artist}</div>
                   <div className="song-tags">
-                    {s.genre && <span className="tag">{s.genre}</span>}
                     {s.year && <span className="tag">{decadeLabel(decadeOf(s.year))}</span>}
                     {s.wished > 0 && <span className="tag">schon gewünscht</span>}
                   </div>
@@ -188,34 +144,59 @@ export default function GuestApp() {
         <BookingLinks eventTitle={data.eventTitle} />
       </footer>
 
-      {selected && session && (
+      {selected && (
         <WishSheet
           song={selected}
           limits={data.limits}
+          dedicationsEnabled={data.dedicationsEnabled}
           eventTitle={data.eventTitle}
-          guestToken={session.token}
+          guestToken={guestToken()}
           onClose={() => setSelected(null)}
-          onSent={(id) => {
-            setSession((s) =>
-              s && {
-                ...s,
-                wishes: [
-                  { id, title: selected.title, artist: selected.artist, at: Date.now(), status: 'open' } as MyWish,
-                  ...s.wishes,
-                ].slice(0, 10),
-              },
-            );
-            load();
-          }}
+          onSent={load}
         />
       )}
     </main>
   );
 }
 
+/** Begrüßung und Datenschutz – erscheint beim ersten Öffnen und über das Info-Icon. */
+function IntroSheet({ title, welcomeText, onClose }: { title: string; welcomeText: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div
+        className="sheet intro"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="intro-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button type="button" className="close-x intro-close" onClick={onClose} aria-label="Schließen">
+          ×
+        </button>
+        <div className="label">{BRAND.name}</div>
+        <h2 id="intro-title">{title}</h2>
+        {welcomeText && <p className="intro-text">{welcomeText}</p>}
+        <p className="intro-note">
+          Kein Login, keine Cookies. Gespeichert wird nur dein Wunsch, und nur bis Simon dein Lied gespielt hat. Danach ist alles gelöscht.
+        </p>
+        <button type="button" className="btn btn-primary btn-block" onClick={onClose} autoFocus>
+          Los geht's
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function WishSheet({
   song,
   limits,
+  dedicationsEnabled,
   eventTitle,
   guestToken,
   onClose,
@@ -223,10 +204,11 @@ function WishSheet({
 }: {
   song: PublicSong;
   limits: PublicData['limits'];
+  dedicationsEnabled: boolean;
   eventTitle: string;
   guestToken: string;
   onClose: () => void;
-  onSent: (id: string) => void;
+  onSent: () => void;
 }) {
   const [name, setName] = useState('');
   const [dedication, setDedication] = useState('');
@@ -248,11 +230,11 @@ function WishSheet({
       const res = await fetch('/api/requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ songId: song.id, name, dedication, guestToken }),
+        body: JSON.stringify({ songId: song.id, name, dedication: dedicationsEnabled ? dedication : '', guestToken }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'Das hat leider nicht geklappt.');
-      onSent(body.id);
+      onSent();
       setDone(true);
     } catch (e) {
       setErr((e as Error).message || 'Keine Verbindung. Bitte nochmal versuchen.');
@@ -269,14 +251,14 @@ function WishSheet({
             <Klangkreis size={140} animated />
             <h2>Dein Wunsch ist angekommen</h2>
             <p>
-              „{song.title}“ steht jetzt auf der Liste. Unter „Deine Wünsche“ siehst du, wann dein Lied dran ist.
+              „{song.title}“ steht jetzt auf Simons Liste. Lehn dich zurück – du hörst es, wenn es so weit ist.
             </p>
             <button className="btn btn-outline btn-block" onClick={onClose}>
               Zurück zur Liste
             </button>
             <div className="after-wish">
               <div className="label">Gefällt dir die Musik?</div>
-              <BookingLinks eventTitle={eventTitle} />
+              <BookingLinks eventTitle={eventTitle} variant="card" />
             </div>
           </div>
         ) : (
@@ -304,24 +286,26 @@ function WishSheet({
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
-            <div className="field">
-              <label htmlFor="wish-dedication">Widmung (optional)</label>
-              <textarea
-                id="wish-dedication"
-                className="textarea"
-                placeholder="z. B. Für das Brautpaar – auf die nächsten 50 Jahre!"
-                maxLength={limits.dedication}
-                value={dedication}
-                onChange={(e) => setDedication(e.target.value)}
-              />
-              <span className="hint">
-                Simon liest sie vor, wenn dein Lied dran ist · {dedication.length}/{limits.dedication}
-              </span>
-            </div>
+            {dedicationsEnabled && (
+              <div className="field">
+                <label htmlFor="wish-dedication">Widmung (optional)</label>
+                <textarea
+                  id="wish-dedication"
+                  className="textarea"
+                  placeholder="z. B. Für das Brautpaar – auf die nächsten 50 Jahre!"
+                  maxLength={limits.dedication}
+                  value={dedication}
+                  onChange={(e) => setDedication(e.target.value)}
+                />
+                <span className="hint">
+                  Simon liest sie vor, wenn dein Lied dran ist · {dedication.length}/{limits.dedication}
+                </span>
+              </div>
+            )}
 
             <p className="privacy">
-              Kein Login. Name und Widmung sieht nur Simon. Sie werden gelöscht, sobald dein Lied gespielt ist, alle
-              Daten spätestens 12 Stunden nach deinem Wunsch. Es werden keine Cookies gesetzt.
+              {dedicationsEnabled ? 'Name und Widmung sieht' : 'Deinen Namen sieht'} nur Simon. Gespeichert wird nur dein Wunsch, und nur bis dein Lied gespielt ist –
+              danach ist alles gelöscht. Kommt es nicht dran, spätestens nach 12 Stunden. Kein Login, keine Cookies.
             </p>
             {err && <p className="error-text">{err}</p>}
             <button className="btn btn-primary btn-block" disabled={busy}>

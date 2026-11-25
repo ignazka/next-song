@@ -2,7 +2,6 @@ export type Song = {
   id: string;
   artist: string;
   title: string;
-  genre: string;
   year: number | null;
 };
 
@@ -12,11 +11,10 @@ export type PublicData = {
   eventTitle: string;
   welcomeText: string;
   requestsOpen: boolean;
+  dedicationsEnabled: boolean;
   limits: { name: number; dedication: number };
   songs: PublicSong[];
 };
-
-export type RequestStatus = 'open' | 'next' | 'played' | 'declined' | 'gone';
 
 export type AdminRequest = {
   id: string;
@@ -37,9 +35,6 @@ export type QueueItem = {
   wishes: AdminRequest[];
 };
 
-/** Status eines Wunsches aus Sicht des Gastes. position 1 = jetzt dran. */
-export type GuestWishStatus = { status: RequestStatus; position: number | null };
-
 export type AdminQueue = {
   requests: AdminRequest[];
   playedCount: number;
@@ -55,6 +50,8 @@ export type Settings = {
   reviewUrl: string;
   /** Danke-Seite in der Sie-Form (Firmen, Trauerfeiern) statt du-Form (Paare) */
   hostFormal: boolean;
+  /** Dürfen Gäste eine Widmung schreiben? (z. B. bei Firmenfeiern ausschalten) */
+  dedicationsEnabled: boolean;
 };
 
 /** Öffentliche Daten für die Danke-Seite des Gastgebers. */

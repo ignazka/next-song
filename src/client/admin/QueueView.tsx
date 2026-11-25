@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, Unauthorized } from './api';
+import { GripIcon } from '../components/Icons';
 import type { AdminQueue, AdminRequest, QueueItem } from '../../shared/types';
 
 /** Sicherheitsnetz, falls der Live-Stream unbemerkt hängt. */
 const FALLBACK_POLL_MS = 20_000;
-/** So lange kann „Gespielt“ / „Überspringen“ rückgängig gemacht werden. */
+/** So lange kann „Gespielt“ / „Entfernen“ rückgängig gemacht werden. */
 const UNDO_MS = 6_000;
 
 type Live = 'connecting' | 'live' | 'offline';
 type FinishStatus = 'played' | 'declined';
 type Pending = { ids: string[]; status: FinishStatus; label: string; timer: ReturnType<typeof setTimeout> };
 
-/** Wünsche zum selben Song zusammenfassen; Reihenfolge = Zeit des ersten Wunsches. */
+/** Wünsche zum selben Lied zusammenfassen; die Reihenfolge kommt vom Server. */
 function groupQueue(requests: AdminRequest[], hidden: Set<string>): QueueItem[] {
   const bySong = new Map<string, QueueItem>();
   for (const r of requests) {
@@ -78,11 +79,16 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
   const [hidden, setHidden] = useState<Set<string>>(() => new Set());
   const [pending, setPending] = useState<Pending | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  /** Reihenfolge, die lokal schon gilt, bevor der Server sie bestätigt hat (Ziehen, Überspringen). */
+  const [localOrder, setLocalOrder] = useState<string[] | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
 
   const known = useRef<Set<string> | null>(null);
   const soundRef = useRef(sound);
   const pendingRef = useRef<Pending | null>(null);
   const loading = useRef<{ busy: boolean; again: boolean }>({ busy: false, again: false });
+  const listRef = useRef<HTMLOListElement>(null);
+  const drag = useRef<{ start: string[]; order: string[] } | null>(null);
 
   useEffect(() => {
     soundRef.current = sound;
@@ -143,7 +149,12 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
     };
   }, [load]);
 
-  const items = useMemo(() => (queue ? groupQueue(queue.requests, hidden) : []), [queue, hidden]);
+  const items = useMemo(() => {
+    const base = queue ? groupQueue(queue.requests, hidden) : [];
+    if (!localOrder) return base;
+    const pos = new Map(localOrder.map((id, i) => [id, i]));
+    return base.slice().sort((a, b) => (pos.get(a.songId) ?? Infinity) - (pos.get(b.songId) ?? Infinity));
+  }, [queue, hidden, localOrder]);
   useEffect(() => onCount(items.length), [items.length, onCount]);
 
   // Bildschirm während des Auftritts nicht ausgehen lassen (nur über HTTPS/localhost verfügbar)
@@ -170,7 +181,82 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
     return () => document.removeEventListener('fullscreenchange', onFs);
   }, []);
 
-  // ---------- Gespielt / Überspringen mit Rückgängig ----------
+  // ---------- Reihenfolge ändern (Überspringen, Ziehen) ----------
+  const applyOrder = useCallback(
+    async (songIds: string[]) => {
+      setLocalOrder(songIds); // sofort anzeigen
+      try {
+        await api('/api/admin/order', { method: 'PUT', body: { songIds } });
+        await load();
+      } catch (e) {
+        if (e instanceof Unauthorized) return onUnauthorized();
+        setErr('Reihenfolge konnte nicht gespeichert werden – bitte nochmal versuchen.');
+      } finally {
+        if (!drag.current) setLocalOrder(null);
+      }
+    },
+    [load, onUnauthorized],
+  );
+
+  /** Überspringen: aktuelles Lied mit dem nächsten tauschen (nichts wird gelöscht). */
+  function skip() {
+    if (items.length < 2) return;
+    const ids = items.map((i) => i.songId);
+    applyOrder([ids[1], ids[0], ...ids.slice(2)]);
+  }
+
+  // Ziehen mit Maus oder Finger am Griff. Die Liste ordnet sich live um, losgelassen wird gespeichert.
+  function onDragStart(e: React.PointerEvent, songId: string) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const start = items.map((i) => i.songId);
+    drag.current = { start, order: start };
+    setLocalOrder(start);
+    setDragId(songId);
+  }
+
+  function onDragMove(e: React.PointerEvent) {
+    if (!dragId || !drag.current || !listRef.current) return;
+    const others = [...listRef.current.querySelectorAll<HTMLElement>('[data-song]')].filter(
+      (row) => row.dataset.song !== dragId,
+    );
+    let index = others.findIndex((row) => {
+      const box = row.getBoundingClientRect();
+      return e.clientY < box.top + box.height / 2;
+    });
+    if (index === -1) index = others.length;
+    const upcoming = others.map((row) => row.dataset.song!);
+    upcoming.splice(index, 0, dragId);
+    const next = [drag.current.order[0], ...upcoming];
+    if (next.join() !== drag.current.order.join()) {
+      drag.current.order = next;
+      setLocalOrder(next);
+    }
+  }
+
+  function onDragEnd() {
+    if (!drag.current) return;
+    const { start, order } = drag.current;
+    drag.current = null;
+    setDragId(null);
+    if (order.join() !== start.join()) applyOrder(order);
+    else setLocalOrder(null);
+  }
+
+  /** Tastatur: Griff fokussieren, dann mit Pfeil hoch/runter verschieben. */
+  function onHandleKey(e: React.KeyboardEvent, songId: string) {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    const ids = items.map((i) => i.songId);
+    const i = ids.indexOf(songId);
+    const j = e.key === 'ArrowUp' ? i - 1 : i + 1;
+    if (j < 1 || j >= ids.length) return; // „Jetzt dran“ bleibt oben – dafür gibt es „Überspringen“
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    applyOrder(ids);
+  }
+
+  // ---------- Gespielt / Entfernen mit Rückgängig ----------
   const commit = useCallback(
     async (p: Pending, keepalive = false) => {
       clearTimeout(p.timer);
@@ -196,7 +282,7 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
     if (pendingRef.current) void commit(pendingRef.current); // vorherige Aktion sofort abschließen
     const ids = item.wishes.map((w) => w.id);
     setHidden((h) => new Set([...h, ...ids]));
-    const label = `„${item.title}“ ${status === 'played' ? 'als gespielt markiert' : 'übersprungen'}`;
+    const label = `„${item.title}“ ${status === 'played' ? 'gespielt' : 'entfernt'}`;
     const p: Pending = { ids, status, label, timer: setTimeout(() => commit(p), UNDO_MS) };
     pendingRef.current = p;
     setPending(p);
@@ -249,7 +335,7 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
 
   if (!queue) return <p className="empty">{err || 'Lädt …'}</p>;
 
-  const [current, next, ...later] = items;
+  const [current, ...upcoming] = items;
   const playedCount = queue.playedCount + (pending?.status === 'played' ? pending.ids.length : 0);
 
   return (
@@ -315,54 +401,68 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
               <button className="btn btn-success btn-xl" onClick={() => finish(current, 'played')}>
                 ✓ Gespielt – weiter
               </button>
-              <button className="btn btn-ghost" onClick={() => finish(current, 'declined')}>
+              <button
+                className="btn btn-outline"
+                onClick={skip}
+                disabled={upcoming.length === 0}
+                title="Mit dem nächsten Lied tauschen – nichts wird gelöscht"
+              >
                 Überspringen
+              </button>
+              <button
+                className="btn btn-remove"
+                onClick={() => finish(current, 'declined')}
+                title="Wunsch löschen (kann kurz rückgängig gemacht werden)"
+              >
+                Entfernen
               </button>
             </div>
           </article>
         )}
 
         <aside className="stage-side">
-          {next && (
-            <article className="up-next">
-              <div className="eyebrow eyebrow-small">Als Nächstes</div>
-              <div className="next-title">
-                {next.title} <span className="next-artist">– {next.artist}</span>
-              </div>
-              <div className="next-from">
-                von <GuestName name={next.wishes[0].name} />
-                {next.wishes.length > 1 && ` und ${next.wishes.length - 1} weiteren`}
-                <span className="dim"> · {clock(next.firstAt)} Uhr</span>
-              </div>
-              {next.wishes[0].dedication && <p className="next-dedication">„{next.wishes[0].dedication}“</p>}
-            </article>
-          )}
-
-          {later.length > 0 && (
+          {upcoming.length > 0 && (
             <div className="later">
-              <h3 className="later-head">Danach</h3>
-              <ol className="later-list" start={3}>
-                {later.map((item, i) => (
-                  <li key={item.songId} className="later-row">
-                    <span className="later-pos">{i + 3}</span>
-                    <span className="later-main">
-                      <strong>{item.title}</strong> <span className="muted">– {item.artist}</span>
-                      <span className="later-meta">
-                        {item.wishes.map((w) => w.name || 'anonym').join(', ')}
-                        {item.wishes.some((w) => w.dedication) && ' · mit Widmung'}
-                      </span>
-                    </span>
-                    <span className="later-time dim">{clock(item.firstAt)}</span>
-                    <button
-                      className="btn btn-sm btn-danger later-x"
-                      onClick={() => finish(item, 'declined')}
-                      aria-label={`${item.title} entfernen`}
-                      title="Entfernen"
+              <h3 className="later-head">Warteschlange · zum Sortieren ziehen</h3>
+              <ol className="later-list" ref={listRef}>
+                {upcoming.map((item, i) => {
+                  const isNext = i === 0;
+                  const firstDedication = item.wishes.find((w) => w.dedication)?.dedication;
+                  return (
+                    <li
+                      key={item.songId}
+                      data-song={item.songId}
+                      className={`later-row${isNext ? ' is-next' : ''}${dragId === item.songId ? ' is-dragging' : ''}`}
                     >
-                      ✕
-                    </button>
-                  </li>
-                ))}
+                      <button
+                        type="button"
+                        className="drag-handle"
+                        aria-label={`${item.title} verschieben (ziehen oder Pfeiltasten)`}
+                        title="Ziehen zum Sortieren"
+                        onPointerDown={(e) => onDragStart(e, item.songId)}
+                        onPointerMove={onDragMove}
+                        onPointerUp={onDragEnd}
+                        onPointerCancel={onDragEnd}
+                        onKeyDown={(e) => onHandleKey(e, item.songId)}
+                      >
+                        <GripIcon size={18} />
+                      </button>
+                      <span className="later-pos">{i + 2}</span>
+                      <span className="later-main">
+                        {isNext && <span className="next-badge">Als Nächstes</span>}
+                        <span className="later-title">
+                          <strong>{item.title}</strong> <span className="muted">– {item.artist}</span>
+                        </span>
+                        <span className="later-meta">
+                          {item.wishes.map((w) => w.name || 'anonym').join(', ')}
+                          {!isNext && firstDedication && ' · mit Widmung'}
+                        </span>
+                        {isNext && firstDedication && <span className="later-dedication">„{firstDedication}“</span>}
+                      </span>
+                      <span className="later-time dim">{clock(item.firstAt)}</span>
+                    </li>
+                  );
+                })}
               </ol>
             </div>
           )}
@@ -370,9 +470,7 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
       </div>
 
       <div className="row stage-footer">
-        <span className="dim small">
-          Erledigte Wünsche werden sofort anonymisiert. Nach dem Event alles löschen:
-        </span>
+        <span className="dim small">Gespielte und entfernte Wünsche werden sofort gelöscht. Nach dem Event alles löschen:</span>
         <button className="btn btn-sm btn-danger" onClick={clearAll}>
           Event beenden & alle Wünsche löschen
         </button>

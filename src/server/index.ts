@@ -15,7 +15,7 @@ import { checkPassword, createSession, destroySession, isAdmin, isPasswordConfig
 import { DIST_DIR, LIMITS, PORT, TRUST_PROXY } from './config.ts';
 import * as store from './store.ts';
 import { clean, isUuid, normalizeSong } from '../shared/validate.ts';
-import type { AdminQueue, GuestWishStatus, PublicData, Settings, ThanksData } from '../shared/types.ts';
+import type { AdminQueue, PublicData, Settings, ThanksData } from '../shared/types.ts';
 
 const app = new Hono();
 
@@ -30,7 +30,8 @@ async function body(c: Context): Promise<Body> {
   }
 }
 
-/** Einfaches In-Memory-Limit pro Schlüssel (IP, Login-Versuche). */
+/** In-Memory-Limit gegen Passwort-Raten beim Musiker-Login (betrifft keine Gäste). */
+const LOGIN_WINDOW_MS = 10 * 60_000;
 const buckets = new Map<string, number[]>();
 function rateLimit(key: string, max: number, windowMs: number) {
   const now = Date.now();
@@ -42,7 +43,7 @@ function rateLimit(key: string, max: number, windowMs: number) {
 }
 setInterval(() => {
   const now = Date.now();
-  for (const [k, v] of buckets) if (!v.some((t) => now - t < LIMITS.windowMs)) buckets.delete(k);
+  for (const [k, v] of buckets) if (!v.some((t) => now - t < LOGIN_WINDOW_MS)) buckets.delete(k);
 }, 60_000).unref();
 
 function clientIp(c: Context): string {
@@ -71,8 +72,11 @@ app.get('/api/public', (c) => {
   const counts = store.wishedCounts();
   const data: PublicData = {
     eventTitle: s.eventTitle,
-    welcomeText: s.welcomeText,
+    // Standardtext erwähnt Widmungen – sind sie aus, die passende Variante zeigen
+    welcomeText:
+      !s.dedicationsEnabled && s.welcomeText === store.DEFAULT_WELCOME ? store.DEFAULT_WELCOME_NO_DEDICATION : s.welcomeText,
     requestsOpen: s.requestsOpen,
+    dedicationsEnabled: s.dedicationsEnabled,
     limits: { name: LIMITS.name, dedication: LIMITS.dedication },
     songs: store.listSongs().map((song) => ({ ...song, wished: counts.get(song.id) ?? 0 })),
   };
@@ -85,28 +89,26 @@ app.post('/api/requests', async (c) => {
   const songId = clean(b.songId, 64);
   if (!store.findSong(songId)) return c.json({ error: 'Lied nicht gefunden.' }, 404);
 
-  const tooMany = { error: 'Du hast gerade schon einige Wünsche abgegeben – bitte warte ein paar Minuten.' };
-  if (!rateLimit(`ip:${clientIp(c)}`, LIMITS.perIp, LIMITS.windowMs)) return c.json(tooMany, 429);
-  // Der Token stammt aus dem sessionStorage des Gastes und wird nur gehasht im Speicher gehalten.
+  // Limit ohne zusätzliche Speicherung: gezählt werden nur die offenen Wünsche dieses Gastes,
+  // die ohnehin in der Warteschlange stehen. Keine IP-Adressen, keine Zeitstempel danach.
+  // Der Token stammt aus dem sessionStorage des Gastes und wird nur gehasht am Wunsch gehalten.
   const token = clean(b.guestToken, 64);
   const guestKey = token ? crypto.createHash('sha256').update(token).digest('hex').slice(0, 32) : '';
-  if (guestKey && store.recentWishesOf(guestKey) >= LIMITS.perGuest) return c.json(tooMany, 429);
+  if (guestKey && store.openWishesOf(guestKey) >= LIMITS.openPerGuest) {
+    return c.json(
+      { error: `Du hast schon ${LIMITS.openPerGuest} offene Wünsche – sobald eins davon gespielt ist, kannst du dir wieder etwas wünschen.` },
+      429,
+    );
+  }
 
   const id = store.addWish({
     songId,
     name: clean(b.name, LIMITS.name),
-    dedication: clean(b.dedication, LIMITS.dedication),
+    // Widmungen ausgeschaltet → auch eine mitgeschickte Widmung wird verworfen
+    dedication: store.getSettings().dedicationsEnabled ? clean(b.dedication, LIMITS.dedication) : '',
     guestKey,
   });
   return c.json({ id }, 201);
-});
-
-app.post('/api/requests/status', async (c) => {
-  const b = await body(c);
-  const ids = (Array.isArray(b.ids) ? b.ids : []).map(String).filter(isUuid).slice(0, 20);
-  const out: Record<string, GuestWishStatus> = {};
-  for (const id of ids) out[id] = store.wishStatus(id);
-  return c.json(out);
 });
 
 app.get('/api/thanks', (c) => {
@@ -120,7 +122,7 @@ app.post('/api/admin/login', async (c) => {
   if (!isPasswordConfigured()) {
     return c.json({ error: 'Es ist kein Passwort eingerichtet. Bitte ADMIN_PASSWORD in der .env setzen.' }, 503);
   }
-  if (!rateLimit(`login:${clientIp(c)}`, 10, 10 * 60_000)) {
+  if (!rateLimit(`login:${clientIp(c)}`, 10, LOGIN_WINDOW_MS)) {
     return c.json({ error: 'Zu viele Versuche. Bitte in ein paar Minuten erneut probieren.' }, 429);
   }
   const b = await body(c);
@@ -160,6 +162,14 @@ admin.patch('/requests', async (c) => {
 /** Event beenden: alle Wünsche löschen. */
 admin.delete('/requests', (c) => {
   store.clearWishes();
+  return c.json({ ok: true });
+});
+
+/** Reihenfolge der Warteschlange ändern (Überspringen, Ziehen). Body: { songIds: string[] } */
+admin.put('/order', async (c) => {
+  const b = await body(c);
+  const songIds = (Array.isArray(b.songIds) ? b.songIds : []).map(String).filter(isUuid).slice(0, 500);
+  store.setOrder(songIds);
   return c.json({ ok: true });
 });
 
@@ -215,6 +225,7 @@ admin.put('/settings', async (c) => {
     patch.reviewUrl = url;
   }
   if ('hostFormal' in b) patch.hostFormal = !!b.hostFormal;
+  if ('dedicationsEnabled' in b) patch.dedicationsEnabled = !!b.dedicationsEnabled;
   store.updateSettings(patch);
   return c.json({ ok: true, settings: store.getSettings() });
 });
@@ -242,7 +253,10 @@ admin.delete('/songs/:id', (c) =>
   store.deleteSong(c.req.param('id')) ? c.json({ ok: true }) : c.json({ error: 'Nicht gefunden' }, 404),
 );
 
-/** Eine Zeile pro Song: „Interpret; Titel; Genre; Jahr“ (Trennzeichen ; Tab oder ,). */
+/**
+ * Eine Zeile pro Song: „Interpret; Titel; Jahr“ (Trennzeichen ; Tab oder ,), Jahr optional.
+ * Alte Listen mit Genre-Spalte („Interpret; Titel; Genre; Jahr“) gehen auch – das Genre wird ignoriert.
+ */
 admin.post('/songs/import', async (c) => {
   const b = await body(c);
   const lines = String(b.text ?? '')
@@ -254,9 +268,11 @@ admin.post('/songs/import', async (c) => {
   const errors: string[] = [];
   for (const [i, line] of lines.entries()) {
     const sep = line.includes(';') ? ';' : line.includes('\t') ? '\t' : ',';
-    const [artist, title, genre, year] = line.split(sep).map((x) => x.trim().replace(/^"|"$/g, ''));
+    const cols = line.split(sep).map((x) => x.trim().replace(/^"|"$/g, ''));
+    const [artist, title] = cols;
+    const year = cols.length >= 4 ? cols[3] : cols[2];
     if (i === 0 && /^(interpret|artist|künstler)$/i.test(artist ?? '')) continue; // Kopfzeile
-    const s = normalizeSong({ artist, title, genre, year });
+    const s = normalizeSong({ artist, title, year });
     if (s) valid.push(s);
     else errors.push(`Zeile ${i + 1}: Interpret oder Titel fehlt`);
   }
@@ -272,7 +288,7 @@ admin.get('/songs/export', (c) => {
     .listSongs()
     .slice()
     .sort((a, b) => a.artist.localeCompare(b.artist, 'de') || a.title.localeCompare(b.title, 'de'));
-  const csv = ['Interpret;Titel;Genre;Jahr', ...rows.map((s) => [s.artist, s.title, s.genre, s.year].map(esc).join(';'))];
+  const csv = ['Interpret;Titel;Jahr', ...rows.map((s) => [s.artist, s.title, s.year].map(esc).join(';'))];
   c.header('Content-Type', 'text/csv; charset=utf-8');
   c.header('Content-Disposition', 'attachment; filename="songliste.csv"');
   return c.body('﻿' + csv.join('\r\n'));

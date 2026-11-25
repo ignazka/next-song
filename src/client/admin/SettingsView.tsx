@@ -26,6 +26,7 @@ export default function SettingsView({ onUnauthorized }: { onUnauthorized: () =>
           publicUrl: s!.publicUrl,
           reviewUrl: s!.reviewUrl,
           hostFormal: s!.hostFormal,
+          dedicationsEnabled: s!.dedicationsEnabled,
         },
       });
       setS(r.settings);
@@ -49,6 +50,21 @@ export default function SettingsView({ onUnauthorized }: { onUnauthorized: () =>
           value={s.eventTitle}
           onChange={(e) => setS({ ...s, eventTitle: e.target.value })}
         />
+      </div>
+      <div className="field">
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={s.dedicationsEnabled}
+            onChange={(e) => setS({ ...s, dedicationsEnabled: e.target.checked })}
+          />
+          <span className="knob" />
+          Gäste können eine Widmung schreiben
+        </label>
+        <span className="hint">
+          Für dieses Event ausschalten, wenn Widmungen nicht passen (z. B. Firmenfeier). Gäste sehen dann kein
+          Widmungsfeld mehr. Ein eigener Begrüßungstext sollte Widmungen dann auch nicht erwähnen.
+        </span>
       </div>
       <div className="field">
         <label htmlFor="e-welcome">Begrüßungstext</label>

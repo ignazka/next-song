@@ -30,7 +30,7 @@ export function normalizeSong(input: Record<string, unknown>): Omit<Song, 'id'> 
   const artist = clean(input.artist, 120);
   const title = clean(input.title, 120);
   if (!artist || !title) return null;
-  return { artist, title, genre: clean(input.genre, 40), year: parseYear(input.year) };
+  return { artist, title, year: parseYear(input.year) };
 }
 
 export const isUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
