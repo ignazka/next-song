@@ -295,7 +295,7 @@ function WishSheet({
             )}
 
             <p className="privacy">
-              {dedicationsEnabled ? 'Name und Widmung sieht' : 'Deinen Namen sieht'} nur Simon. Dein Wunsch wird gelöscht, sobald dein Lied gespielt ist,
+              {dedicationsEnabled ? 'Name und Widmung sieht' : 'Deinen Namen sieht'} nur Simon. Dein Wunsch wird gelöscht, sobald dein Lied gespielt wurde,
               sonst automatisch nach 2 Stunden. Kein Login, keine Cookies.
             </p>
             {err && <p className="error-text">{err}</p>}
