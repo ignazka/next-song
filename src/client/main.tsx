@@ -11,20 +11,15 @@ import './styles.css';
 
 import GuestApp from './components/GuestApp';
 
-// Musiker-Bereich und Danke-Seite werden nur bei Bedarf geladen – die Gäste-Seite bleibt klein.
+// Der Musiker-Bereich wird nur bei Bedarf geladen – die Gäste-Seite bleibt klein.
 const AdminApp = lazy(() => import('./admin/AdminApp'));
-const ThanksPage = lazy(() => import('./components/ThanksPage'));
 
-/** Drei Seiten, kein Router nötig: der Pfad entscheidet. */
+/** Zwei Seiten, kein Router nötig: der Pfad entscheidet. */
 function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   if (path === '/admin') {
     document.title = 'Musiker-Bereich · Songwunsch';
     return <AdminApp />;
-  }
-  if (path === '/danke') {
-    document.title = 'Danke · Simon Weichert';
-    return <ThanksPage />;
   }
   return <GuestApp />;
 }

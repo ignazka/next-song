@@ -16,7 +16,6 @@ npm run dev
 | --- | --- |
 | Gäste | http://localhost:5173 |
 | Musiker | http://localhost:5173/admin |
-| Danke-Seite für Gastgeber | http://localhost:5173/danke |
 
 Vom Handy im selben WLAN: die Adresse, die Vite als „Network“ anzeigt (z. B. `http://192.168.x.x:5173`).
 
@@ -34,16 +33,22 @@ npm start                   # http://localhost:3001 (PORT in .env änderbar)
   - **Überspringen:** tauscht mit dem nächsten Lied (nichts wird gelöscht; nochmal tippen tauscht zurück).
   - **Entfernen** (rötlich): löscht den Wunsch. Beides mit 6 s „Rückgängig“ unten rechts.
 - **Warteschlange:** neue Lieder kommen ans Ende, mehrfach gewünschte Lieder behalten ihren Platz und zeigen alle Namen. Die oberste Zeile ist **Als Nächstes** (hervorgehoben). Reihenfolge per Griff ändern: ziehen mit Maus oder Finger, oder Griff fokussieren und Pfeiltasten.
-- Echtzeit-Updates, Ton bei neuen Wünschen (standardmäßig aus), Vollbild, Wünsche pausieren.
+- Echtzeit-Updates mit Live-Anzeige und Vollbild-Modus.
 - **Widmungen pro Event an/aus** (Einstellungen): z. B. bei Firmenfeiern ausschalten. Gäste sehen dann kein Widmungsfeld, der Server verwirft mitgeschickte Widmungen, und der Standard-Begrüßungstext erwähnt keine Widmung.
+
+## QR-Code
+
+Der QR-Code enthält nur die Adresse der Gäste-Seite – kein Event, kein Datum. **Gleiche Adresse = gleicher Code**: einmal drucken (Tab „QR-Code“ → Drucken/PDF oder PNG) und bei jedem Event wiederverwenden.
+
+Die Adresse wird **im Code** festgelegt: `BRAND.guestUrl` in [`src/shared/brand.ts`](src/shared/brand.ts), z. B. `'https://wunsch.simonweichert.com/'`. Solange sie leer ist, nimmt der QR-Code die Adresse, unter der der Musiker-Bereich gerade geöffnet ist – das taugt nur zum lokalen Testen.
 
 ## Aufbau
 
 ```
 index.html                  Einstieg für Vite
 src/client/                 Oberfläche (React, läuft im Browser)
-  main.tsx                  wählt anhand des Pfads: Gäste, /admin, /danke
-  components/               Gäste-Ansicht, Danke-Seite, Klangkreis, Icons …
+  main.tsx                  wählt anhand des Pfads: Gäste oder /admin
+  components/               Gäste-Ansicht, Klangkreis, Icons …
   admin/                    Musiker-Bereich (wird nur bei Bedarf geladen)
   styles.css                Design „Simon Weichert“ (dunkles Thema)
 src/server/                 Server (Hono, läuft in Node)

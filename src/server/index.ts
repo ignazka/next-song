@@ -4,7 +4,6 @@
  */
 import crypto from 'node:crypto';
 import fs from 'node:fs';
-import os from 'node:os';
 import { serve } from '@hono/node-server';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import { serveStatic } from '@hono/node-server/serve-static';
@@ -15,7 +14,7 @@ import { checkPassword, createSession, destroySession, isAdmin, isPasswordConfig
 import { DIST_DIR, LIMITS, PORT, TRUST_PROXY } from './config.ts';
 import * as store from './store.ts';
 import { clean, isUuid, normalizeSong } from '../shared/validate.ts';
-import type { AdminQueue, PublicData, Settings, ThanksData } from '../shared/types.ts';
+import type { AdminQueue, PublicData, Settings } from '../shared/types.ts';
 
 const app = new Hono();
 
@@ -75,7 +74,6 @@ app.get('/api/public', (c) => {
     // Standardtext erwähnt Widmungen – sind sie aus, die passende Variante zeigen
     welcomeText:
       !s.dedicationsEnabled && s.welcomeText === store.DEFAULT_WELCOME ? store.DEFAULT_WELCOME_NO_DEDICATION : s.welcomeText,
-    requestsOpen: s.requestsOpen,
     dedicationsEnabled: s.dedicationsEnabled,
     limits: { name: LIMITS.name, dedication: LIMITS.dedication },
     songs: store.listSongs().map((song) => ({ ...song, wished: counts.get(song.id) ?? 0 })),
@@ -85,7 +83,6 @@ app.get('/api/public', (c) => {
 
 app.post('/api/requests', async (c) => {
   const b = await body(c);
-  if (!store.getSettings().requestsOpen) return c.json({ error: 'Gerade werden keine Wünsche angenommen.' }, 403);
   const songId = clean(b.songId, 64);
   if (!store.findSong(songId)) return c.json({ error: 'Lied nicht gefunden.' }, 404);
 
@@ -109,12 +106,6 @@ app.post('/api/requests', async (c) => {
     guestKey,
   });
   return c.json({ id }, 201);
-});
-
-app.get('/api/thanks', (c) => {
-  const s = store.getSettings();
-  const data: ThanksData = { reviewUrl: s.reviewUrl, formal: s.hostFormal };
-  return c.json(data);
 });
 
 // ---------- Musiker: Login ----------
@@ -145,7 +136,6 @@ admin.get('/requests', (c) => {
   const data: AdminQueue = {
     requests: store.queue(),
     playedCount: store.getPlayedCount(),
-    requestsOpen: store.getSettings().requestsOpen,
   };
   return c.json(data);
 });
@@ -198,33 +188,13 @@ admin.get('/stream', (c) => {
 });
 
 // ---------- Musiker: Einstellungen ----------
-function lanAddresses(): string[] {
-  const out: string[] = [];
-  for (const list of Object.values(os.networkInterfaces())) {
-    for (const ni of list ?? []) if (ni.family === 'IPv4' && !ni.internal) out.push(ni.address);
-  }
-  return out;
-}
-
-admin.get('/settings', (c) => c.json({ settings: store.getSettings(), lanAddresses: lanAddresses() }));
+admin.get('/settings', (c) => c.json({ settings: store.getSettings() }));
 
 admin.put('/settings', async (c) => {
   const b = await body(c);
   const patch: Partial<Settings> = {};
   if ('eventTitle' in b) patch.eventTitle = clean(b.eventTitle, 80) || 'Wünsch dir ein Lied';
   if ('welcomeText' in b) patch.welcomeText = clean(b.welcomeText, 300);
-  if ('requestsOpen' in b) patch.requestsOpen = !!b.requestsOpen;
-  if ('publicUrl' in b) {
-    const url = clean(b.publicUrl, 300);
-    if (url && !/^https?:\/\/\S+$/i.test(url)) return c.json({ error: 'Die Adresse muss mit http:// oder https:// beginnen.' }, 400);
-    patch.publicUrl = url;
-  }
-  if ('reviewUrl' in b) {
-    const url = clean(b.reviewUrl, 500);
-    if (url && !/^https:\/\/\S+$/i.test(url)) return c.json({ error: 'Der Bewertungslink muss mit https:// beginnen.' }, 400);
-    patch.reviewUrl = url;
-  }
-  if ('hostFormal' in b) patch.hostFormal = !!b.hostFormal;
   if ('dedicationsEnabled' in b) patch.dedicationsEnabled = !!b.dedicationsEnabled;
   store.updateSettings(patch);
   return c.json({ ok: true, settings: store.getSettings() });
@@ -304,7 +274,7 @@ if (fs.existsSync(DIST_DIR)) {
     serveStatic({ root: './dist', onFound: (_p, c) => c.header('Cache-Control', 'public, max-age=31536000, immutable') }),
   );
   app.use('*', serveStatic({ root: './dist' }));
-  // Alle anderen Pfade (/, /admin, /danke) → die App entscheidet im Browser, was angezeigt wird
+  // Alle anderen Pfade (/, /admin) → die App entscheidet im Browser, was angezeigt wird
   app.get('*', serveStatic({ path: './dist/index.html' }));
 }
 

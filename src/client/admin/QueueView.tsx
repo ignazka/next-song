@@ -35,25 +35,6 @@ function ago(iso: string, now: number) {
   return `vor ${Math.floor(min / 60)} Std. ${min % 60} Min.`;
 }
 
-/** Kurzer, dezenter Ton bei neuen Wünschen. */
-function chime() {
-  try {
-    const ctx = new AudioContext();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(880, ctx.currentTime);
-    o.frequency.setValueAtTime(1320, ctx.currentTime + 0.12);
-    g.gain.setValueAtTime(0.0001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
-    o.connect(g).connect(ctx.destination);
-    o.start();
-    o.stop(ctx.currentTime + 0.5);
-    setTimeout(() => ctx.close(), 800);
-  } catch {}
-}
-
 function sendFinish(ids: string[], status: FinishStatus, keepalive = false) {
   return fetch('/api/admin/requests', {
     method: 'PATCH',
@@ -73,8 +54,6 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
   const [queue, setQueue] = useState<AdminQueue | null>(null);
   const [live, setLive] = useState<Live>('connecting');
   const [err, setErr] = useState('');
-  // Hinweiston bei neuen Wünschen: standardmäßig aus, per Schalter „Ton“ einschaltbar
-  const [sound, setSound] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [hidden, setHidden] = useState<Set<string>>(() => new Set());
   const [pending, setPending] = useState<Pending | null>(null);
@@ -83,16 +62,10 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
   const [localOrder, setLocalOrder] = useState<string[] | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
 
-  const known = useRef<Set<string> | null>(null);
-  const soundRef = useRef(sound);
   const pendingRef = useRef<Pending | null>(null);
   const loading = useRef<{ busy: boolean; again: boolean }>({ busy: false, again: false });
   const listRef = useRef<HTMLOListElement>(null);
   const drag = useRef<{ start: string[]; order: string[] } | null>(null);
-
-  useEffect(() => {
-    soundRef.current = sound;
-  }, [sound]);
 
   // ---------- Daten laden (überlappende Aufrufe werden zusammengefasst) ----------
   const load = useCallback(async () => {
@@ -106,8 +79,6 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
         loading.current.again = false;
         const q = await api<AdminQueue>('/api/admin/requests');
         const ids = new Set(q.requests.map((r) => r.id));
-        if (known.current && soundRef.current && q.requests.some((r) => !known.current!.has(r.id))) chime();
-        known.current = ids;
         setQueue(q);
         setNow(Date.now());
         setErr('');
@@ -307,16 +278,6 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
     };
   }, [commit]);
 
-  async function toggleOpen(open: boolean) {
-    setQueue((q) => q && { ...q, requestsOpen: open });
-    try {
-      await api('/api/admin/settings', { method: 'PUT', body: { requestsOpen: open } });
-    } catch (e) {
-      if (e instanceof Unauthorized) return onUnauthorized();
-      setErr((e as Error).message);
-    }
-  }
-
   async function clearAll() {
     if (!window.confirm('Event beenden und ALLE Wünsche endgültig löschen?')) return;
     try {
@@ -349,16 +310,6 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
           {items.length} {items.length === 1 ? 'Song' : 'Songs'} in der Warteschlange · {playedCount} gespielt
         </span>
         <span className="spacer" />
-        <label className="switch small">
-          <input type="checkbox" checked={queue.requestsOpen} onChange={(e) => toggleOpen(e.target.checked)} />
-          <span className="knob" />
-          {queue.requestsOpen ? 'Wünsche offen' : 'Wünsche pausiert'}
-        </label>
-        <label className="switch small">
-          <input type="checkbox" checked={sound} onChange={(e) => setSound(e.target.checked)} />
-          <span className="knob" />
-          Ton
-        </label>
         <button className="btn btn-sm btn-ghost" onClick={toggleFullscreen}>
           {fullscreen ? 'Vollbild beenden' : 'Vollbild'}
         </button>
@@ -470,7 +421,6 @@ export default function QueueView({ onUnauthorized, onCount, visible }: Props) {
       </div>
 
       <div className="row stage-footer">
-        <span className="dim small">Gespielte und entfernte Wünsche werden sofort gelöscht. Nach dem Event alles löschen:</span>
         <button className="btn btn-sm btn-danger" onClick={clearAll}>
           Event beenden & alle Wünsche löschen
         </button>

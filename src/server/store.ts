@@ -126,13 +126,14 @@ export const DEFAULT_WELCOME_NO_DEDICATION = 'Such dir ein Lied aus – ich spie
 const DEFAULT_SETTINGS: Settings = {
   eventTitle: 'Wünsch dir ein Lied',
   welcomeText: DEFAULT_WELCOME,
-  requestsOpen: true,
-  publicUrl: process.env.PUBLIC_URL ?? '',
-  reviewUrl: '',
-  hostFormal: false,
   dedicationsEnabled: true,
 };
-let settings: Settings = { ...DEFAULT_SETTINGS, ...readJson<Partial<Settings>>(SETTINGS_FILE, {}) };
+// Nur bekannte Einstellungen übernehmen (entfernte Optionen aus älteren Dateien fallen weg)
+const savedSettings = readJson<Partial<Record<keyof Settings, unknown>>>(SETTINGS_FILE, {});
+let settings: Settings = { ...DEFAULT_SETTINGS };
+for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof Settings)[]) {
+  if (key in savedSettings) (settings as Record<string, unknown>)[key] = savedSettings[key];
+}
 
 export const getSettings = (): Settings => settings;
 export function updateSettings(patch: Partial<Settings>) {

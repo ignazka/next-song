@@ -73,7 +73,7 @@ export default function AdminApp() {
         <QueueView onUnauthorized={onUnauthorized} onCount={setOpenCount} visible={tab === 'queue'} />
       </div>
       {tab === 'songs' && <SongsView onUnauthorized={onUnauthorized} />}
-      {tab === 'qr' && <QrView onUnauthorized={onUnauthorized} />}
+      {tab === 'qr' && <QrView />}
       {tab === 'settings' && <SettingsView onUnauthorized={onUnauthorized} />}
     </main>
   );

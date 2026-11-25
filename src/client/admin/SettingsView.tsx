@@ -23,9 +23,6 @@ export default function SettingsView({ onUnauthorized }: { onUnauthorized: () =>
         body: {
           eventTitle: s!.eventTitle,
           welcomeText: s!.welcomeText,
-          publicUrl: s!.publicUrl,
-          reviewUrl: s!.reviewUrl,
-          hostFormal: s!.hostFormal,
           dedicationsEnabled: s!.dedicationsEnabled,
         },
       });
@@ -76,54 +73,8 @@ export default function SettingsView({ onUnauthorized }: { onUnauthorized: () =>
           onChange={(e) => setS({ ...s, welcomeText: e.target.value })}
         />
       </div>
-      <div className="field">
-        <label htmlFor="e-url">Öffentliche Adresse der App (für den QR-Code)</label>
-        <input
-          id="e-url"
-          className="input"
-          placeholder="https://songwunsch.example.de/"
-          value={s.publicUrl}
-          onChange={(e) => setS({ ...s, publicUrl: e.target.value })}
-        />
-        <span className="hint">Leer lassen = die Adresse, unter der du diese Seite gerade geöffnet hast.</span>
-      </div>
-
-      <h2 className="card-title" style={{ marginTop: 28 }}>
-        Danke-Seite für den Gastgeber
-      </h2>
-      <div className="field">
-        <label htmlFor="e-review">Google-Bewertungslink</label>
-        <input
-          id="e-review"
-          className="input"
-          placeholder="https://g.page/r/…/review"
-          value={s.reviewUrl}
-          onChange={(e) => setS({ ...s, reviewUrl: e.target.value })}
-        />
-        <span className="hint">
-          Im Google-Unternehmensprofil unter „Bewertungen einholen“ (bzw. „Nach Rezensionen fragen“) kopieren. Leer
-          lassen = die Danke-Seite zeigt keinen Bewertungs-Button.
-        </span>
-      </div>
-      <div className="field">
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={s.hostFormal}
-            onChange={(e) => setS({ ...s, hostFormal: e.target.checked })}
-          />
-          <span className="knob" />
-          Gastgeber siezen
-        </label>
-        <span className="hint">
-          Für Firmenfeiern und Trauerfeiern. Aus = du-Form für Paare und private Feiern.
-        </span>
-      </div>
-      {msg &&<p className={msg.ok ? 'ok-text' : 'error-text'}>{msg.text}</p>}
+      {msg && <p className={msg.ok ? 'ok-text' : 'error-text'}>{msg.text}</p>}
       <button className="btn btn-primary">Speichern</button>
-      <p className="dim small" style={{ marginTop: 18 }}>
-        Das Musiker-Passwort wird über die Umgebungsvariable <code>ADMIN_PASSWORD</code> festgelegt.
-      </p>
     </form>
   );
 }

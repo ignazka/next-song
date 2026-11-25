@@ -22,7 +22,7 @@ export default function SongFilterBar({ songs, filter, onChange, resultCount }: 
           className="input"
           type="search"
           inputMode="search"
-          placeholder="Lied oder Interpret suchen …"
+          placeholder="Lied oder Interpret"
           value={filter.search}
           onChange={(e) => set({ search: e.target.value })}
           aria-label="Suche"

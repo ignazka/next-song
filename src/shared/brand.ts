@@ -10,6 +10,12 @@ export const BRAND = {
   website: 'https://www.simonweichert.com/',
   /** Später, z. B. 'https://wa.me/49151…' – leer = WhatsApp-Button wird nicht angezeigt. */
   whatsapp: '',
+  /**
+   * Feste Adresse der Gäste-Seite – genau diese steckt im QR-Code.
+   * Gleiche Adresse = gleicher QR-Code, d. h. einmal drucken und bei jedem Event wiederverwenden.
+   * Leer = die Adresse, unter der der Musiker-Bereich gerade geöffnet ist (nur zum lokalen Testen).
+   */
+  guestUrl: '',
 } as const;
 
 /** E-Mail-Anfrage mit vorausgefülltem Betreff und kurzer Vorlage. */

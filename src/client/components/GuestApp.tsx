@@ -105,10 +105,6 @@ export default function GuestApp() {
 
       {introOpen && <IntroSheet title={data.eventTitle} welcomeText={data.welcomeText} onClose={closeIntro} />}
 
-      {!data.requestsOpen && (
-        <div className="banner">Gerade werden keine Wünsche angenommen. Schau später noch einmal vorbei.</div>
-      )}
-
       <SongFilterBar songs={data.songs} filter={filter} onChange={setFilter} resultCount={songs.length} />
 
       {songs.length === 0 ? (
@@ -117,7 +113,7 @@ export default function GuestApp() {
         <ul className="song-list">
           {songs.map((s) => (
             <li key={s.id}>
-              <button className="song-btn" onClick={() => setSelected(s)} disabled={!data.requestsOpen}>
+              <button className="song-btn" onClick={() => setSelected(s)}>
                 <div className="song-main">
                   <div className="song-title">{s.title}</div>
                   <div className="song-artist">{s.artist}</div>
@@ -126,11 +122,9 @@ export default function GuestApp() {
                     {s.wished > 0 && <span className="tag">schon gewünscht</span>}
                   </div>
                 </div>
-                {data.requestsOpen && (
-                  <span className="song-plus">
-                    <PlusIcon size={18} />
-                  </span>
-                )}
+                <span className="song-plus">
+                  <PlusIcon size={18} />
+                </span>
               </button>
             </li>
           ))}

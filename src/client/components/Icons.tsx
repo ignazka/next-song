@@ -68,23 +68,6 @@ export function PlusIcon({ size = 20, className }: IconProps) {
   );
 }
 
-export function StarIcon({ size = 20, className }: IconProps) {
-  return (
-    <svg {...base(size)} className={className}>
-      <path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />
-    </svg>
-  );
-}
-
-export function CopyIcon({ size = 18, className }: IconProps) {
-  return (
-    <svg {...base(size)} className={className}>
-      <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
-      <path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2" />
-    </svg>
-  );
-}
-
 export function InfoIcon({ size = 20, className }: IconProps) {
   return (
     <svg {...base(size)} className={className}>
