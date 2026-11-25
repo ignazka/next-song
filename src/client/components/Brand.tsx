@@ -40,7 +40,7 @@ export function BrandBar() {
 
 /**
  * Kontakt-Buttons nach dem Wunsch und unten auf der Seite (Wunsch von Simon):
- * Instagram zuerst, darunter „Schreib Simon“ (+ WhatsApp, sobald hinterlegt).
+ * Instagram zuerst, darunter „Schreibe Simon“ (+ WhatsApp, sobald hinterlegt).
  */
 export function BookingLinks({ eventTitle }: { eventTitle?: string }) {
   return (
@@ -49,7 +49,7 @@ export function BookingLinks({ eventTitle }: { eventTitle?: string }) {
         <InstagramIcon size={18} /> Simon auf Instagram
       </a>
       <a className="btn btn-outline" href={bookingMailto(eventTitle)}>
-        <MailIcon size={18} /> Schreib Simon
+        <MailIcon size={18} /> Schreibe Simon
       </a>
       {BRAND.whatsapp && (
         <a className="btn btn-outline" href={BRAND.whatsapp} target="_blank" rel="noopener noreferrer">

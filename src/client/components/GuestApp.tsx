@@ -244,7 +244,7 @@ function WishSheet({
             <Klangkreis size={140} animated />
             <h2>Dein Wunsch ist angekommen</h2>
             <p>
-              „{song.title}“ steht jetzt auf Simons Liste. Lehn dich zurück – du hörst es, wenn es so weit ist.
+              <strong>{song.title}</strong> steht jetzt auf Simons Liste. Lehn dich zurück – du hörst es, wenn es so weit ist.
             </p>
             <button className="btn btn-outline btn-block" onClick={onClose}>
               Zurück zur Liste
@@ -298,7 +298,7 @@ function WishSheet({
 
             <p className="privacy">
               {dedicationsEnabled ? 'Name und Widmung sieht' : 'Deinen Namen sieht'} nur Simon. Gespeichert wird nur dein Wunsch, und nur bis dein Lied gespielt ist –
-              danach ist alles gelöscht. Kommt es nicht dran, spätestens nach 12 Stunden. Kein Login, keine Cookies.
+              danach ist alles gelöscht. Kommt es nicht dran, wird es spätestens nach dem Auftritt gelöscht. Kein Login, keine Cookies.
             </p>
             {err && <p className="error-text">{err}</p>}
             <button className="btn btn-primary btn-block" disabled={busy}>

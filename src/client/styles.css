@@ -184,7 +184,7 @@ code { font-size: 0.9em; }
 .song-plus { color: var(--ink-muted); flex-shrink: 0; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; border: var(--line-hair) solid var(--mist); }
 
 
-/* Abschluss-Karte unten: wie der untere Teil der Bestätigung (Label, Instagram, Schreib Simon) */
+/* Abschluss-Karte unten: wie der untere Teil der Bestätigung (Label, Instagram, Schreibe Simon) */
 .guest-footer {
   margin-top: 40px; padding: 22px 22px 24px; text-align: center;
   background: var(--surface); border: var(--line-hair) solid var(--mist); border-radius: var(--radius-md);
@@ -208,6 +208,7 @@ code { font-size: 0.9em; }
 .success .klangkreis { margin: 0 auto 8px; }
 .success h2 { font-size: 36px; line-height: 1.15; }
 .success p { color: var(--ink-muted); }
+.success p strong { color: var(--ink); font-weight: 600; }
 /* Unterer Teil der Bestätigung: etwas dunklerer Grund (paper), randlos bis an die Kartenkanten */
 .after-wish {
   margin: 22px -22px calc(-22px - env(safe-area-inset-bottom));
