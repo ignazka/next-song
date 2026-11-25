@@ -176,7 +176,7 @@ function IntroSheet({ title, welcomeText, onClose }: { title: string; welcomeTex
         <h2 id="intro-title">{title}</h2>
         {welcomeText && <p className="intro-text">{welcomeText}</p>}
         <p className="intro-note">
-          Kein Login, keine Cookies. Gespeichert wird nur dein Wunsch, und nur bis Simon dein Lied gespielt hat. Danach ist alles gelöscht.
+          Kein Login, keine Cookies. Gespeichert wird nur dein Wunsch. Er wird gelöscht, sobald dein Lied gespielt wurde, sonst automatisch nach 2 Stunden.
         </p>
         <button type="button" className="btn btn-primary btn-block" onClick={onClose} autoFocus>
           Los geht's
