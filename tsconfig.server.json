@@ -1,0 +1,20 @@
+{
+  // Server: Node 24 führt die .ts-Dateien direkt aus (Type Stripping), kein Build-Schritt.
+  // Deshalb: nur „löschbare“ TypeScript-Syntax und Importe mit .ts-Endung.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/server", "src/shared", "vite.config.ts"]
+}

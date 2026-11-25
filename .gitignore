@@ -1,0 +1,7 @@
+node_modules/
+dist/
+# Songliste und Einstellungen (Laufzeitdaten, nicht in Git)
+data/
+.env
+.env.*
+!.env.example
