@@ -184,9 +184,12 @@ code { font-size: 0.9em; }
 .song-plus { color: var(--ink-muted); flex-shrink: 0; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; border: var(--line-hair) solid var(--mist); }
 
 
-.guest-footer { margin-top: 40px; padding-top: 28px; border-top: var(--line-hair) solid var(--mist); text-align: center; }
-.guest-footer .wordmark-name { font-size: 24px; }
-.guest-footer p { color: var(--ink-muted); margin: 6px 0 18px; font-size: 19px; }
+/* Abschluss-Karte unten: wie der untere Teil der Bestätigung (Label, Instagram, Schreib Simon) */
+.guest-footer {
+  margin-top: 40px; padding: 22px 22px 24px; text-align: center;
+  background: var(--surface); border: var(--line-hair) solid var(--mist); border-radius: var(--radius-md);
+}
+.guest-footer .label { margin-bottom: 12px; }
 .cta-stack { display: flex; flex-direction: column; gap: 10px; align-items: stretch; max-width: 360px; margin: 0 auto; }
 
 /* Bottom-Sheet / Dialog */

@@ -131,10 +131,9 @@ export default function GuestApp() {
         </ul>
       )}
 
+      {/* Gleicher Aufbau wie der untere Teil der Bestätigung nach dem Wunsch */}
       <footer className="guest-footer">
-        <div className="wordmark-name">{BRAND.name}</div>
-        <div className="label">{BRAND.claim}</div>
-        <p>Live-Gesang und Gitarre für Hochzeiten, Firmenfeiern und Geburtstage.</p>
+        <div className="label">Gefällt dir die Musik?</div>
         <BookingLinks eventTitle={data.eventTitle} />
       </footer>
 
@@ -252,7 +251,7 @@ function WishSheet({
             </button>
             <div className="after-wish">
               <div className="label">Gefällt dir die Musik?</div>
-              <BookingLinks eventTitle={eventTitle} variant="card" />
+              <BookingLinks eventTitle={eventTitle} />
             </div>
           </div>
         ) : (
