@@ -3,7 +3,6 @@ import SongFilterBar from './SongFilterBar';
 import Klangkreis from './Klangkreis';
 import { InfoIcon, PlusIcon } from './Icons';
 import { BookingLinks, BrandBar } from './Brand';
-import { BRAND } from '../../shared/brand';
 import { decadeLabel, decadeOf, EMPTY_FILTER, filterSongs, type SongFilter } from '../../shared/songs';
 import type { PublicData, PublicSong } from '../../shared/types';
 
@@ -172,8 +171,7 @@ function IntroSheet({ title, welcomeText, onClose }: { title: string; welcomeTex
         <button type="button" className="close-x intro-close" onClick={onClose} aria-label="Schließen">
           ×
         </button>
-        <div className="label">{BRAND.name}</div>
-        <h2 id="intro-title">{title}</h2>
+        <h2 id="intro-title" className="intro-title">{title}</h2>
         {welcomeText && <p className="intro-text">{welcomeText}</p>}
         <p className="intro-note">
           Kein Login, keine Cookies. Gespeichert wird nur dein Wunsch. Er wird gelöscht, sobald dein Lied gespielt wurde, sonst automatisch nach 2 Stunden.

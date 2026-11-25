@@ -159,7 +159,8 @@ code { font-size: 0.9em; }
 
 /* Begrüßungs-Popup */
 .sheet.intro { position: relative; text-align: center; padding-top: 30px; }
-.intro h2 { font-size: 32px; line-height: 1.1; margin: 8px 0 14px; font-weight: 500; }
+/* Titel wie die Überschrift auf der Gästeseite, aber in Gold */
+.intro h2.intro-title { font-size: clamp(28px, 7.5vw, 38px); line-height: 1.1; font-weight: 500; color: var(--gold-deep); margin: 12px 40px 16px; }
 .intro-text { color: var(--ink); font-size: 21px; margin: 0 auto 14px; max-width: 420px; }
 .intro-note { color: var(--dim); font-size: 17px; margin: 0 auto 22px; max-width: 400px; }
 .intro-close { position: absolute; top: 14px; right: 16px; }
