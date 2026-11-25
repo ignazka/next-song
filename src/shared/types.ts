@@ -41,7 +41,10 @@ export type AdminQueue = {
 
 export type Settings = {
   eventTitle: string;
+  /** Begrüßung, wenn Widmungen erlaubt sind */
   welcomeText: string;
+  /** Begrüßung, wenn Widmungen ausgeschaltet sind */
+  welcomeTextNoDedication: string;
   /** Dürfen Gäste eine Widmung schreiben? (z. B. bei Firmenfeiern ausschalten) */
   dedicationsEnabled: boolean;
 };

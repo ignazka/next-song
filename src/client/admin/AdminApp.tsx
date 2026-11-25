@@ -12,6 +12,7 @@ export default function AdminApp() {
   const [configured, setConfigured] = useState(true);
   const [tab, setTab] = useState<Tab>('queue');
   const [openCount, setOpenCount] = useState(0);
+  const [settingsDirty, setSettingsDirty] = useState(false);
 
   const check = useCallback(async () => {
     try {
@@ -65,6 +66,9 @@ export default function AdminApp() {
           <button key={id} className={`tab ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
             {label}
             {id === 'queue' && openCount > 0 && <span className="badge">{openCount}</span>}
+            {id === 'settings' && settingsDirty && (
+              <span className="tab-dot" title="Nicht gespeicherte Änderungen" aria-label="nicht gespeichert" />
+            )}
           </button>
         ))}
       </nav>
@@ -74,7 +78,10 @@ export default function AdminApp() {
       </div>
       {tab === 'songs' && <SongsView onUnauthorized={onUnauthorized} />}
       {tab === 'qr' && <QrView />}
-      {tab === 'settings' && <SettingsView onUnauthorized={onUnauthorized} />}
+      {/* Bleibt geladen, damit ungespeicherte Eingaben beim Tab-Wechsel nicht verloren gehen. */}
+      <div hidden={tab !== 'settings'}>
+        <SettingsView onUnauthorized={onUnauthorized} onDirty={setSettingsDirty} />
+      </div>
     </main>
   );
 }

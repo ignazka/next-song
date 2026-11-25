@@ -91,7 +91,20 @@ code { font-size: 0.9em; }
 
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 .field label { font-size: 18px; color: var(--ink-muted); font-weight: 600; }
+.field label strong { color: var(--ink); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
 .field .hint { font-size: 17px; color: var(--dim); }
+/* Begrüßungstexte: der aktive ist grün markiert (wie „Live“), der andere deutlich zurückgenommen */
+.field-live .textarea { border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
+.field-inactive label, .field-inactive .textarea { opacity: 0.45; }
+.field-inactive .textarea { border-style: dashed; }
+.field .status-note.is-live { color: var(--green); font-weight: 600; }
+/* Speichern-Bereich der Einstellungen: deutlicher Hinweis, solange etwas nicht gespeichert ist */
+.save-bar { margin-top: 8px; padding-top: 16px; border-top: var(--line-hair) solid var(--mist); }
+.save-bar.is-dirty { border-top-color: rgba(240, 149, 139, 0.5); }
+.settings-card.is-dirty { border-color: var(--red); box-shadow: 0 0 0 1px var(--red); }
+.save-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.unsaved { margin: 0 0 12px; color: var(--red); font-size: 17px; font-weight: 500; }
+.tab-dot { display: inline-block; width: 9px; height: 9px; margin-left: 8px; border-radius: 50%; background: var(--red); vertical-align: middle; }
 .input, .select, .textarea {
   width: 100%; min-height: 58px; padding: 12px 16px; border-radius: var(--radius-sm);
   border: var(--line-hair) solid var(--mist); background: var(--field); outline: none;

@@ -72,8 +72,7 @@ app.get('/api/public', (c) => {
   const data: PublicData = {
     eventTitle: s.eventTitle,
     // Standardtext erwähnt Widmungen – sind sie aus, die passende Variante zeigen
-    welcomeText:
-      !s.dedicationsEnabled && s.welcomeText === store.DEFAULT_WELCOME ? store.DEFAULT_WELCOME_NO_DEDICATION : s.welcomeText,
+    welcomeText: s.dedicationsEnabled ? s.welcomeText : s.welcomeTextNoDedication,
     dedicationsEnabled: s.dedicationsEnabled,
     limits: { name: LIMITS.name, dedication: LIMITS.dedication },
     songs: store.listSongs().map((song) => ({ ...song, wished: counts.get(song.id) ?? 0 })),
@@ -195,6 +194,7 @@ admin.put('/settings', async (c) => {
   const patch: Partial<Settings> = {};
   if ('eventTitle' in b) patch.eventTitle = clean(b.eventTitle, 80) || 'Wünsch dir ein Lied';
   if ('welcomeText' in b) patch.welcomeText = clean(b.welcomeText, 300);
+  if ('welcomeTextNoDedication' in b) patch.welcomeTextNoDedication = clean(b.welcomeTextNoDedication, 300);
   if ('dedicationsEnabled' in b) patch.dedicationsEnabled = !!b.dedicationsEnabled;
   store.updateSettings(patch);
   return c.json({ ok: true, settings: store.getSettings() });

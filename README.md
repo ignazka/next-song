@@ -34,7 +34,7 @@ npm start                   # http://localhost:3001 (PORT in .env änderbar)
   - **Entfernen** (rötlich): löscht den Wunsch. Beides mit 6 s „Rückgängig“ unten rechts.
 - **Warteschlange:** neue Lieder kommen ans Ende, mehrfach gewünschte Lieder behalten ihren Platz und zeigen alle Namen. Die oberste Zeile ist **Als Nächstes** (hervorgehoben). Reihenfolge per Griff ändern: ziehen mit Maus oder Finger, oder Griff fokussieren und Pfeiltasten.
 - Echtzeit-Updates mit Live-Anzeige und Vollbild-Modus.
-- **Widmungen pro Event an/aus** (Einstellungen): z. B. bei Firmenfeiern ausschalten. Gäste sehen dann kein Widmungsfeld, der Server verwirft mitgeschickte Widmungen, und der Standard-Begrüßungstext erwähnt keine Widmung.
+- **Widmungen pro Event an/aus** (Einstellungen): z. B. bei Firmenfeiern ausschalten. Gäste sehen dann kein Widmungsfeld, der Server verwirft mitgeschickte Widmungen, und sie bekommen einen eigenen Begrüßungstext ohne Widmung (ebenfalls in den Einstellungen änderbar).
 
 ## QR-Code
 
